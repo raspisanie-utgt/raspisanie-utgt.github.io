@@ -134,7 +134,7 @@ jobs:
       - name: Собрать сайт
         run: python build_site.py ${{ steps.scrape.outcome == 'failure' && '--scrape-failed' || '' }}
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main'
         with:
           path: _site
