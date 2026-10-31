@@ -26,11 +26,11 @@ jobs:
     steps:
       # ветка как она есть сейчас, а не на момент постановки в очередь: запуск, ждавший в очереди
       # (час и сигнал сторожа совпали), иначе работал бы со старыми данными
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
