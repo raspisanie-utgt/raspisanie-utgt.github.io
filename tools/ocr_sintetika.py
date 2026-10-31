@@ -107,7 +107,7 @@ def check(task):
         return [("таблица", f"строк {len(rows)}", f"распознано {len(t['rows'])}", False)]
     for want, r in zip(rows, t["rows"]):
         g = want["group"] or g
-        w = {"группа": g, "урок": scraper.parse_lessons(want["lessons"]), "кабинет": want["room"].replace("Акт.зал", "Акт. зал"),
+        w = {"группа": g, "урок": scraper.parse_lessons(want["lessons"]), "кабинет": want["room"].replace("Акт.зал", "1-34"),
              "предмет": want["subject"]}
         got = {"группа": r["group"], "урок": (r["lessons"], r["time"]), "кабинет": r["room"], "предмет": r["subject"]}
         bad = [k for k in w if w[k] != got[k]]

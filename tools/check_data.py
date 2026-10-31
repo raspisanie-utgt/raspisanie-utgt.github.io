@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 ROOM_RE = re.compile(r"^([12]-(\d{1,2}[А-ЯЁ]?|\?)|\?)$")  # «2-1Е» — есть такой; «?» / «2-?» — кабинет на уточнении
-# кабинеты без номера («Акт. зал») — из data/rooms.json
+# кабинеты без номера (если появятся) — из data/rooms.json
 NAMED_ROOMS = set(json.loads((ROOT / "data" / "rooms.json").read_text(encoding="utf-8")).get("rooms", {}))
 TEACHER_RE = re.compile(r"^[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)? [А-ЯЁ]\.[А-ЯЁ]\.$")
 DAYS = {"1": "пн", "2": "вт", "3": "ср", "4": "чт", "5": "пт", "6": "сб"}

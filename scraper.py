@@ -364,8 +364,8 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
         subject = raw[2] if len(raw) > 2 else ""
         room = fix_digits(raw[3]) if len(raw) > 3 else ""
         room_alts = []
-        if len(raw) > 3 and re.match(r"\s*ак", raw[3], re.I):  # «АкКтТ.ЗАЛ»
-            room = "Акт. зал"
+        if len(raw) > 3 and re.match(r"\s*ак", raw[3], re.I):  # «АкКтТ.ЗАЛ» — актовый зал, это кабинет 1-34
+            room = "1-34"
         elif len(raw) > 3 and raw[3]:
             # кабинет: несколько масштабов; «]» в конце — это 7 или 1 (на мелкой картинке не различить)
             room_reads = [raw[3]] + [cell(vlines[3], vlines[4], y0, y1, 7, k, pad=pad)[0] for k, pad in ((3, False), (6, False), (4, True))]
@@ -377,7 +377,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
             if votes:
                 room_alts = [v for i, (v, n) in enumerate(votes.most_common()) if i == 0 or n >= ROOM_ALT_MIN]
                 room = room_alts[0]  # прочтения расходятся — решит сверка (check_with_schedule)
-        if not re.search(r"\d-\d", room) and room != "Акт. зал":
+        if not re.search(r"\d-\d", room):
             m = re.search(r"\s*[|\]]?\s*(\d-\d{1,2})\s*$", subject)
             room = m.group(1) if m else ""
             if m:
