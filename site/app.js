@@ -604,16 +604,20 @@
   function roomsListHTML() {
     var R = (state.data.rooms || {}).rooms || {}, B = (state.data.rooms || {}).buildings || {};
     var FL = function (s) { return /^цоколь/.test(s) ? 0 : parseInt(s, 10) || 9; };
+    // кабинеты без номера корпуса (актовый зал) — отдельным разделом, а не теряются
+    var other = Object.keys(R).filter(function (r) { return !B[r.split("-")[0]]; });
+    var parts = Object.keys(B).map(function (k) { return { title: B[k].name + " · " + B[k].address, rooms: Object.keys(R).filter(function (r) { return r.split("-")[0] === k; }) }; });
+    if (other.length) parts.push({ title: "Без номера кабинета", rooms: other });
     return '<p class="p-note">Крыло — если стоять лицом к зданию снаружи. Первая цифра номера — корпус.</p>' +
-      Object.keys(B).map(function (k) {
+      parts.map(function (part) {
         var by = {};
-        Object.keys(R).filter(function (r) { return r.split("-")[0] === k; }).forEach(function (r) {
+        part.rooms.forEach(function (r) {
           var f = R[r].split(", ")[0];
           (by[f] = by[f] || []).push(r);
         });
         var floors = Object.keys(by).sort(function (a, b) { return FL(a) - FL(b); });
         if (!floors.length) return "";
-        return '<h3 class="p-sub">' + esc(B[k].name) + " · " + esc(B[k].address) + "</h3>" + floors.map(function (f) {
+        return '<h3 class="p-sub">' + esc(part.title) + "</h3>" + floors.map(function (f) {
           return '<div class="p-floor"><b>' + esc(f.charAt(0).toUpperCase() + f.slice(1)) + '</b><div class="p-rooms">' +
             by[f].map(function (r) {
               var rest = R[r].split(", ").slice(1).join(", ");
