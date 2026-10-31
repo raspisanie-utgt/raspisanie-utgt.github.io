@@ -64,16 +64,17 @@ def changes(old, new):
     return out
 
 
-def open_issue(text):
+def open_issue(text, title="Изменились исходные PDF на сайте техникума", tail=None):
     token, repo = os.environ.get("GITHUB_TOKEN"), os.environ.get("GITHUB_REPOSITORY")
     if not token or not repo:
         return None
     h = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
     api = f"https://api.github.com/repos/{repo}"
     requests.post(f"{api}/labels", headers=h, json={"name": LABEL, "color": "0e8a16"}, timeout=30)
-    data = {"title": "Изменились исходные PDF на сайте техникума", "labels": [LABEL],
-            "body": text + "\n\nСайт показывает расписание, разобранное из старых файлов. Проверить и при необходимости "
-                           "разобрать заново: `tools/extract_schedule.py`, `tools/extract_calendar.py`, звонки — `data/bells.json`."}
+    if tail is None:
+        tail = ("Сайт показывает расписание, разобранное из старых файлов. Проверить и при необходимости разобрать заново: "
+                "`tools/extract_schedule.py`, `tools/extract_calendar.py`, звонки — `data/bells.json`.")
+    data = {"title": title, "labels": [LABEL], "body": text + "\n\n" + tail}
     if os.environ.get("HEALTH_ASSIGNEE"):
         data["assignees"] = [os.environ["HEALTH_ASSIGNEE"]]
     r = requests.post(f"{api}/issues", headers=h, json=data, timeout=30)
@@ -82,6 +83,13 @@ def open_issue(text):
 
 
 def main():
+    notice = ROOT / "data" / "week_anchor_changed.txt"
+    if notice.exists():  # scraper.py перенёс опорную неделю — сообщить человеку
+        n = open_issue(notice.read_text(encoding="utf-8"), "Сменилась нумерация недель", "Если это ошибка — верните "
+                       "`week_anchor` в `data/groups/*.json`.")
+        print(f"сообщил о смене нумерации недель: задача #{n}" if n else "смена нумерации недель (без ключа задачу не открыть)")
+        if n:
+            notice.unlink()
     old = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     new = {"files": {}, "page_pdfs": page_pdfs()}
     for name, url in tracked().items():

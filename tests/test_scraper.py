@@ -270,3 +270,39 @@ def test_table_continues_on_second_image(tmp_path):
     key = lambda rows: [(r["lessons"], r["subject"], r["room"]) for r in rows]
     assert a["ok"] and b["ok"] and key(a["rows"] + b["rows"]) == key(full["rows"])
     assert scraper.ocr_table(tmp_path / "b.png", scraper.subject_vocab())["rows"] == []  # без continued — как раньше
+
+
+def test_week_numbering_follows_college(tmp_path):
+    """Нумерация недель сменилась: распоряжения двух недель подряд, номера чередуются и не сходятся с расчётом —
+    опорная неделя переносится, и пишется заметка для задачи. Забытый шаблон (три дня одной недели) — не переносится."""
+    z, g = tmp_path / "zameny", tmp_path / "groups"
+    z.mkdir(), g.mkdir()
+    (g / "11a.json").write_text(json.dumps({"week_anchor": {"date": "2026-10-19", "week": 1}, "days": {}}), encoding="utf-8")
+    def day(date, week):
+        (z / f"{date}.json").write_text(json.dumps({"date": date, "title": f"День, {week}-я неделя", "week_doubt": True}), encoding="utf-8")
+    quiet = lambda *_: None
+    # по расчёту 26–28.10 — 2-я неделя; в шаблоне забыли поменять «1-я» — три дня одной недели
+    day("2026-10-26", 1), day("2026-10-27", 1), day("2026-10-28", 1)
+    assert not scraper.fix_week_anchor(z, g, log=quiet)
+    # следующая неделя (по расчёту 1-я) — снова «1-я»: номера не чередуются, это всё ещё не смена нумерации
+    day("2026-11-02", 1), day("2026-11-03", 1)
+    assert not scraper.fix_week_anchor(z, g, log=quiet)
+    # смена: неделя 02.11 — «2-я», неделя 09.11 — «1-я» (по расчёту 1-я и 2-я)
+    for p in z.glob("*.json"):
+        p.unlink()
+    day("2026-11-05", 2), day("2026-11-06", 2), day("2026-11-09", 1)
+    assert scraper.fix_week_anchor(z, g, log=quiet)
+    assert json.loads((g / "11a.json").read_text(encoding="utf-8"))["week_anchor"] == {"date": "2026-11-09", "week": 1}
+    assert (tmp_path / "week_anchor_changed.txt").exists()
+    assert json.loads((z / "2026-11-09.json").read_text(encoding="utf-8"))["week_doubt"]  # пометку не снимаем
+
+
+def test_date_without_year_near_new_year(monkeypatch):
+    """«на 2 января» без года, выложено 30 декабря — это следующий год."""
+    class D(scraper.dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 12, 30, 15, 0, tzinfo=tz)
+    monkeypatch.setattr(scraper.dt, "datetime", D)
+    blocks = scraper.parse_page('<div itemprop="articleBody"><p>на 2 января, очное отделение</p><img src="/i/a.png"></div>')
+    assert blocks[0]["date"] == "2027-01-02"

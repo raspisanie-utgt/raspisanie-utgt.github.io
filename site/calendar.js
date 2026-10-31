@@ -38,8 +38,30 @@
     return ((cal.groups || {})[group] || {}).periods || [];
   }
 
+  // Государственные праздники, которые каждый год одни и те же (переносы выходных бывают разные — их знает только
+  // учебный график). Нужны, когда учебного графика на этот год ещё нет: сайт всё равно не поставит пары на 4 ноября.
+  var FIXED_HOLIDAYS = { "01-01": "Новогодние каникулы", "01-02": "Новогодние каникулы", "01-03": "Новогодние каникулы",
+    "01-04": "Новогодние каникулы", "01-05": "Новогодние каникулы", "01-06": "Новогодние каникулы", "01-07": "Рождество Христово",
+    "01-08": "Новогодние каникулы", "02-23": "День защитника Отечества", "03-08": "Международный женский день",
+    "05-01": "Праздник Весны и Труда", "05-09": "День Победы", "06-12": "День России", "11-04": "День народного единства" };
+
+  // Учебный год, который покрывает график: с 1 сентября до последнего дня периодов (обычно 31 августа)
+  function covered(date, cal) {
+    if (!cal._end) {
+      var end = "";
+      Object.keys(cal.groups || {}).forEach(function (g) { periods(cal, g).forEach(function (p) { if (p.to > end) end = p.to; }); });
+      (cal.holidays || []).forEach(function (h) { if (h.date > end) end = h.date; });
+      cal._end = end || "0000";
+      cal._start = end ? (+end.slice(0, 4) - 1) + "-09-01" : "9999";
+    }
+    return date >= cal._start && date <= cal._end;
+  }
+
   function holiday(date, cal) {
-    return (cal.holidays || []).filter(function (h) { return h.date === date; })[0] || null;
+    var h = (cal.holidays || []).filter(function (h) { return h.date === date; })[0] || null;
+    if (h || covered(date, cal)) return h;
+    var name = FIXED_HOLIDAYS[date.slice(5)];
+    return name ? { date: date, name: name } : null;
   }
 
   // Нет занятий в этот день? -> { reason: "...", kind: "holiday"|"break" } или null

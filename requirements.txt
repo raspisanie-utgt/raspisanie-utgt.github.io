@@ -1,8 +1,9 @@
-requests>=2.31
-beautifulsoup4>=4.12
-pillow>=10
-numpy>=1.26
-pytest>=8
-pdfplumber>=0.11
-rjsmin>=1.2
-rcssmin>=1.1
+# верхние границы — чтобы новая большая версия библиотеки однажды сама не сломала ежечасную проверку
+requests>=2.31,<3
+beautifulsoup4>=4.12,<5
+pillow>=10,<13
+numpy>=1.26,<3
+pytest>=8,<10
+pdfplumber>=0.11,<0.12
+rjsmin>=1.2,<2
+rcssmin>=1.1,<2

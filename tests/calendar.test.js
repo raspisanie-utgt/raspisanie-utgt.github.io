@@ -88,3 +88,11 @@ test("текущий период графика: сессия 31-Д 25.12", () 
   assert.strictEqual(C.current("2026-12-25", cal, "31-Д").type, "sessiya");
   assert.strictEqual(C.current("2026-10-27", cal, "31-Д"), null);
 });
+
+test("за пределами учебного графика — государственные праздники всё равно знаем", () => {
+  const cal = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "../data/calendar.json"), "utf8"));
+  assert.strictEqual(C.dayOff("2027-11-04", cal, "11-А").reason, "День народного единства");
+  assert.strictEqual(C.dayOff("2028-01-03", cal, "11-А").kind, "holiday");
+  assert.strictEqual(C.dayOff("2027-11-05", cal, "11-А"), null);
+  assert.strictEqual(C.dayOff("2026-11-05", cal, "11-А"), null);  // внутри графика — только то, что в нём
+});

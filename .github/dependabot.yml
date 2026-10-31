@@ -1,0 +1,8 @@
+# Раз в месяц GitHub сам предложит обновить действия в .github/workflows (их старые версии со временем
+# отключают) — придёт готовое предложение правки; его проверят тесты (tests.yml), и если они зелёные — принять.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

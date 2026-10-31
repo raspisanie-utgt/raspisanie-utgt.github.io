@@ -85,7 +85,11 @@ def parse_page(html, base_url=URL):
         if m and m.group(2) in MONTHS:
             year = int(m.group(3)) if m.group(3) else today.year
             try:
-                date = dt.date(year, MONTHS[m.group(2)], int(m.group(1))).isoformat()
+                d = dt.date(year, MONTHS[m.group(2)], int(m.group(1)))
+                if not m.group(3) and abs((d - today).days) > 180:
+                    # год не написан, а дата за полгода от сегодня — это соседний год («на 2 января» 30 декабря)
+                    d = d.replace(year=year + (1 if d < today else -1))
+                date = d.isoformat()
             except ValueError:  # опечатка на странице («на 31 ноября») — пропускаем, остальное разбираем
                 print(f"ВНИМАНИЕ: неверная дата на странице: «{m.group(0)}»", file=sys.stderr)
                 date = None
@@ -409,6 +413,44 @@ def title_week(title):
     return int(m.group(1)) if m else None
 
 
+def fix_week_anchor(out_dir=OUT_DIR, groups_dir=ROOT / "data" / "groups", log=print):
+    """Техникум сменил нумерацию недель (например, с нового учебного года снова с 1-й) — переносим опорную неделю во все
+    расписания групп, и сайт дальше считает по-новому сам. Чтобы не сработать на ошибку (в шаблоне распоряжения забыли
+    поменять номер недели, неверно распознан заголовок), нужно: распоряжения из двух разных календарных недель подряд,
+    номера в них чередуются (1 -> 2 или 2 -> 1), и ни одно из последних трёх не сходится с расчётом. Перенос записывается
+    в data/week_anchor_changed.txt — ежечасная проверка открывает об этом задачу. True, если перенесли."""
+    anchor_now = next((json.loads(p.read_text(encoding="utf-8")).get("week_anchor") for p in sorted(groups_dir.glob("*.json"))
+                       if p.name != "index.json" and "week_anchor" in json.loads(p.read_text(encoding="utf-8"))), None)
+    days = []
+    for p in sorted(out_dir.glob("????-??-??.json")):
+        z = json.loads(p.read_text(encoding="utf-8"))
+        w = title_week(z.get("title"))
+        if w:
+            days.append((z["date"], w))
+    last = days[-3:]
+    if len(last) < 3 or any(expected_week(d, anchor_now) in (None, w) for d, w in last):
+        return False
+    monday = lambda d: dt.date.fromisoformat(d) - dt.timedelta(days=dt.date.fromisoformat(d).weekday())
+    weeks = {}
+    for d, w in last:
+        weeks.setdefault(monday(d), set()).add(w)
+    keys = sorted(weeks)
+    if len(keys) < 2 or (keys[-1] - keys[-2]).days != 7 or any(len(v) > 1 for v in weeks.values()) or weeks[keys[-1]] == weeks[keys[-2]]:
+        return False  # всё в одной неделе или номера не чередуются — похоже на забытый шаблон, а не на смену нумерации
+    date, week = last[-1]
+    anchor = {"date": monday(date).isoformat(), "week": week}
+    for path in sorted(groups_dir.glob("*.json")):
+        s = json.loads(path.read_text(encoding="utf-8"))
+        if "week_anchor" in s:
+            s["week_anchor"] = anchor
+            write_atomic(path, json.dumps(s, ensure_ascii=False, indent=1))
+    note = (f"Сменилась нумерация недель: распоряжения {', '.join(d for d, _ in last)} называют другую неделю, чем по расчёту. "
+            f"Опорная неделя теперь {anchor['date']} — {anchor['week']}-я. Проверьте по распоряжениям, что это так.")
+    write_atomic(groups_dir.parent / "week_anchor_changed.txt", note)
+    log(note)
+    return True
+
+
 def week_doubt(date, title):
     t, e = title_week(title), expected_week(date)
     return bool(t and e and t != e)
@@ -638,6 +680,7 @@ def main():
                 print(f"ОШИБКА {b['date']}: {e!r}", file=sys.stderr)
     finally:
         write_index()
+        fix_week_anchor()
     # страница открылась, но замен не нашлось — для мониторинга это сбой (скорее всего, вёрстка);
     # ошибка — только если не удалось вообще ничего
     if not ochnoe:
