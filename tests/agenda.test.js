@@ -123,3 +123,20 @@ test("неуверенная отмена: пара не исчезает, а п
 test("заголовок распоряжения с сомнительной неделей (week_doubt) — неделя по расчёту", () => {
   assert.strictEqual(A.weekNumber("2026-10-27", schedule, { title: "Вторник, 1-я неделя", week_doubt: true }), 2);
 });
+
+test("общее с ботом домашки: groupDay и shortText", () => {
+  const z = A.zamenaForGroup({ all_changes: { "11-А": [{ lessons: [1, 2], time: null, subject: "Отменить", room: "", uncertain: true }] }, ocr_ok: true }, "11-А");
+  const ag = A.groupDay("2026-10-26", schedule, bells, z, null, "2027-01-11");
+  assert.strictEqual(A.shortText(ag, z), "Информатика (возможно, отменена), Математика, География. Замены распознаны неуверенно — сверьтесь с картинкой на сайте.");
+  const holiday = A.groupDay("2026-11-04", schedule, bells, null, { kind: "holiday", reason: "День народного единства" }, "2027-01-11");
+  assert.strictEqual(A.shortText(holiday, null), "пар нет — День народного единства.");
+  const after = A.groupDay("2027-01-12", schedule, bells, null, null, "2027-01-11");
+  assert.ok(after.expired && /нового семестра/.test(A.shortText(after, null)));
+});
+
+test("данные давно не обновлялись", () => {
+  const st = { checked_at: "2026-10-31T15:49+03:00" };
+  assert.strictEqual(A.staleSince(st, new Date("2026-10-31T17:00:00+03:00")), "");
+  assert.strictEqual(A.staleSince(st, new Date("2026-10-31T19:30:00+03:00")), "31.10 в 15:49");
+  assert.strictEqual(A.staleSince({ checked_at: "2026-10-31T21:47+03:00" }, new Date("2026-11-01T07:30:00+03:00")), "");  // ночь — проверок нет
+});

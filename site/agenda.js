@@ -208,7 +208,56 @@
     return Object.assign({}, agenda, { items: items });
   }
 
-  var api = { langOf: langOf, forLanguage: forLanguage, build: build, weekNumber: weekNumber, markNow: markNow, moscowNow: moscowNow, isoWeekday: isoWeekday,
+  // ---------- общее для сайта и бота домашки (бот берёт этот файл прямо с сайта — правки доходят до него сами) ----------
+
+  // Строки распоряжения для одной группы (файл распоряжения один на весь техникум)
+  function zamenaForGroup(z, group) {
+    if (!z || z.load_failed) return z || null;
+    var all = z.all_changes, mine = all ? (all[group] || []) : [];
+    return Object.assign({}, z, {
+      changes: mine,
+      // не по всем строкам распознана группа (или название группы прочитано криво — строка может быть чьей угодно),
+      // номер недели под сомнением, или в файле нет разбивки по группам
+      ocr_uncertain: !all || !!all["?"] || !!z.ocr_group_doubt || !!z.week_doubt || mine.some(function (c) { return c.uncertain; })
+    });
+  }
+
+  // День группы целиком: в каникулы и на практике (off — Calendar.dayOff) — только строки замен,
+  // после конца семестра (validTo — data/groups/index.json: valid_to) — ничего (ag.expired)
+  function groupDay(date, schedule, bells, z, off, validTo) {
+    var ag = build(date, off ? Object.assign({}, schedule, { days: {} }) : schedule, bells, z);
+    ag.off = off || null;
+    if (off && !(z && z.changes && z.changes.length)) { ag.items = []; ag.cancelled = []; }
+    if (validTo && date > validTo) { ag.items = []; ag.cancelled = []; ag.expired = true; }
+    return ag;
+  }
+
+  // Коротко, одной строкой (ответ бота «какие пары»): «Химия, Физика (возможно, отменена).» и пометки
+  function shortText(ag, z) {
+    if (ag.expired) return "расписания нового семестра на сайте пока нет — смотрите на сайте техникума.";
+    var parts = [];
+    ag.items.forEach(function (it) {
+      if (/Разговоры о важном/i.test(it.subject)) return;
+      var s = it.subject + (it.maybeCancel ? " (возможно, отменена)" : "");
+      if (parts.indexOf(s) < 0) parts.push(s);
+    });
+    if (!parts.length) return "пар нет" + (ag.off ? " — " + ag.off.reason : ag.weekday === 7 ? " — воскресенье" : "") + ".";
+    return parts.join(", ") + "." + (z && (z.load_failed || z.ocr_uncertain || !z.ocr_ok)
+      ? " Замены распознаны неуверенно — сверьтесь с картинкой на сайте." : "");
+  }
+
+  // Данные давно не обновлялись (ежечасная проверка встала): «31.10 в 15:49» или "".
+  // Днём проверка раз в час — тревога через 3 часа; ночью проверок нет (21:47–6:47) — через 12 часов.
+  function staleSince(status, now) {
+    var st = status || {}, at = st.checked_at && Date.parse(st.checked_at);
+    if (!at) return "";
+    var hours = ((now || new Date()) - at) / 36e5, h = moscowNow(now).minutes / 60;
+    if (hours <= (h >= 9 && h < 22 ? 3 : 12)) return "";
+    return st.checked_at.slice(8, 10) + "." + st.checked_at.slice(5, 7) + " в " + st.checked_at.slice(11, 16);
+  }
+
+  var api = { langOf: langOf, forLanguage: forLanguage, build: build, zamenaForGroup: zamenaForGroup, groupDay: groupDay,
+    shortText: shortText, staleSince: staleSince, weekNumber: weekNumber, markNow: markNow, moscowNow: moscowNow, isoWeekday: isoWeekday,
     addDays: addDays, humanDate: humanDate, lessonTime: lessonTime, CANCEL: CANCEL };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Agenda = api;

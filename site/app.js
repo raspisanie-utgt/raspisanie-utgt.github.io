@@ -145,29 +145,15 @@
   // Данные давно не обновлялись (ежечасная проверка встала) — плашка об этом, а не спокойное «замен нет».
   // Днём проверка раз в час — тревога через 3 часа; ночью проверок нет (21:47–6:47) — через 12 часов.
   function staleHTML() {
-    var st = state.data.status || {}, at = st.checked_at && Date.parse(st.checked_at);
-    if (!at) return "";
-    var hours = (Date.now() - at) / 36e5, h = A.moscowNow().minutes / 60;
-    var when = st.checked_at.slice(8, 10) + "." + st.checked_at.slice(5, 7) + " в " + st.checked_at.slice(11, 16);
-    if (hours > (h >= 9 && h < 22 ? 3 : 12)) {
-      return "<strong>Данные не обновлялись с " + when + "</strong>Замены могли выйти позже — сверьтесь с сайтом техникума.";
-    }
+    var st = state.data.status || {}, when = A.staleSince(st, new Date());
+    if (when) return "<strong>Данные не обновлялись с " + when + "</strong>Замены могли выйти позже — сверьтесь с сайтом техникума.";
     if (st.ok === false) return "<strong>Последняя проверка сайта техникума не удалась</strong>Замены могут быть неполными — сверьтесь с сайтом техникума.";
     return "";
   }
 
   // Распоряжение одно на весь техникум — вырезаем строки выбранной группы
-  function zamenaForGroup(z, group) {
-    if (!z) return null;
-    var all = z.all_changes;
-    var mine = all ? (all[group] || []) : [];
-    return Object.assign({}, z, {
-      changes: mine,
-      // не по всем строкам распознана группа (или название группы прочитано криво — строка может быть чьей угодно),
-      // или в файле нет разбивки по группам
-      ocr_uncertain: !all || !!all["?"] || !!z.ocr_group_doubt || !!z.week_doubt || mine.some(function (c) { return c.uncertain; })
-    });
-  }
+  // строки своей группы — общая часть с ботом домашки (agenda.js)
+  function zamenaForGroup(z, group) { return A.zamenaForGroup(z, group); }
 
   // animate — плавно показать карточки (при открытии и смене вкладки, но не при ежеминутном обновлении)
   // Окно между парами — час и больше (обычные перемены и большой перерыв не отмечаем)
@@ -366,9 +352,8 @@
 
   // Расписание дня с учётом праздников, каникул и практики из учебного графика группы
   function build(date, schedule, z) {
-    var off = C.dayOff(date, state.data.calendar, state.group);
-    // каникулы или практика, но в распоряжении есть строки для группы — только эти строки, без обычных пар
-    var ag = A.build(date, off ? Object.assign({}, schedule, { days: {} }) : schedule, state.data.bells, z);
+    // каникулы и практика (только строки замен), конец семестра — в A.groupDay (так же считает бот домашки)
+    var ag = A.groupDay(date, schedule, state.data.bells, z, C.dayOff(date, state.data.calendar, state.group), state.data.validTo);
     // в распоряжении о замене преподаватель не указан — подставляем того, кто ведёт этот предмет у группы
     ag.items.forEach(function (it) {
       if (it.changed && !it.teacher && it.subject !== A.CANCEL && window.Teachers) {
@@ -377,19 +362,7 @@
       }
     });
     // иностранный язык: только своя подгруппа (если язык выбран)
-    ag = A.forLanguage(ag, lang());
-    ag.off = off;
-    if (ag.off && !(z && z.changes.length)) {
-      ag.items = [];
-      ag.cancelled = [];
-    }
-    // расписание семестра закончилось (data/groups/index.json: valid_to), а нового ещё нет — не показываем старое
-    if (state.data.validTo && date > state.data.validTo) {
-      ag.items = [];
-      ag.cancelled = [];
-      ag.expired = true;
-    }
-    return ag;
+    return A.forLanguage(ag, lang());
   }
 
   // Значок интернета у часов (вайфай: две толстые скруглённые дуги и точка). Цвет — только когда есть повод:
