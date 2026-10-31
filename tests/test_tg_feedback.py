@@ -18,6 +18,9 @@ def test_spam_rules():
     assert T.spam_reason("ааааааааааааааааааа") == "повтор символов"
     assert T.spam_reason("В пятницу у 21-С стоит физика, а по факту химия") is None
     assert T.spam_reason("на сайте не та аудитория у 11-А, должна быть 2-18") is None
+    # обычные слова — не реклама
+    assert T.spam_reason("пара переходит на 3 урок, а ставка преподавателя тут ни при чём") is None
+    assert T.spam_reason("в новостях про доходы техникума ошибка") is None
 
 
 def test_issue_keeps_only_text_no_personal_data():
@@ -125,3 +128,26 @@ def test_real_messages_are_assigned_spam_is_not():
     bot, repo = FakeBot(updates), FakeRepo()
     T.run(bot, repo, log=lambda *_: None, assignee="owner")
     assert repo.assignees == [["owner"], []]
+
+
+def test_blocked_user_does_not_block_queue():
+    """Человек заблокировал бота (ответ 403) — задача одна, сообщение подтверждено, очередь идёт дальше."""
+    class Bot:
+        def __init__(self): self.offset = None
+        def call(self, method, **k):
+            if method == "getUpdates":
+                if "offset" in k:
+                    self.offset = k["offset"]
+                    return []
+                return [{"update_id": 7, "message": {"chat": {"id": 1, "type": "private"}, "text": "у 11-А не та аудитория"}}]
+            if method == "sendMessage":
+                raise RuntimeError("403 Forbidden: bot was blocked by the user")
+    class Repo:
+        issues = 0
+        def ensure_labels(self): pass
+        def create_issue(self, *a, **k):
+            Repo.issues += 1
+            return Repo.issues
+    bot = Bot()
+    assert T.run(bot, Repo(), log=lambda *_: None) == 1
+    assert bot.offset == 8 and Repo.issues == 1

@@ -24,21 +24,32 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
+      # ветка как она есть сейчас, а не на момент постановки в очередь: запуск, ждавший в очереди
+      # (час и сигнал сторожа совпали), иначе работал бы со старыми данными
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
-      - name: Установить tesseract (русский; английский — для чтения одних цифр)
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng
-
+      # сначала pip: если tesseract не поставится, сигналу о сбое (tools/health.py) всё равно нужен requests
       - run: pip install -r requirements.txt
 
+      - name: Установить tesseract (русский; английский — для чтения одних цифр)
+        id: setup
+        # без apt-get update (это долго, и его сбой ронял всё); не вышло — с update
+        run: |
+          P="tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng"
+          sudo apt-get install -y -q $P || { sudo apt-get update -q && sudo apt-get install -y -q $P; }
+
+      # тесты — только когда меняется код (push); ежечасная проверка и сигнал сторожа их не ждут:
+      # новое распоряжение появляется на сайте на ~7 минут быстрее, и тесты не могут остановить обновления
       - name: Тесты
+        id: tests
+        if: github.event_name == 'push'
         run: |
           python -m pytest tests -q
           node --test tests/agenda.test.js tests/calendar.test.js tests/teachers.test.js
@@ -63,21 +74,31 @@ jobs:
         continue-on-error: true
         run: python tools/teachers.py
 
+      - name: Исходные PDF (расписание, звонки, график, педсостав) — поменялись -> задача
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEALTH_ASSIGNEE: olegskorostrel-wq
+        run: python tools/sources.py
+
       - name: Проверка данных (опечатки, накладки, сомнительные замены — отчёт в логе)
         continue-on-error: true
         run: python tools/check_data.py
 
       - name: Сигнал о сбое (3 неудачи подряд -> задача и пуш)
-        if: github.ref == 'refs/heads/main'
+        if: always() && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEALTH_ASSIGNEE: olegskorostrel-wq
-        run: python tools/health.py --scrape ${{ steps.scrape.outcome }} --news ${{ steps.news.outcome }}
+        run: >-
+          python tools/health.py --setup ${{ steps.setup.outcome }}
+          --scrape ${{ steps.scrape.outcome }} --news ${{ steps.news.outcome }}
 
       - name: Сохранить новые замены и новости в репозиторий
-        if: github.ref == 'refs/heads/main'
+        if: always() && github.ref == 'refs/heads/main'
         run: |
-          git add data/zameny data/archive data/news.json data/teachers.json data/health.json
+          git add data/zameny data/archive data/news.json data/teachers.json data/health.json data/sources.json
           if git diff --cached --quiet; then
             echo "Новых замен и новостей нет"
           else
@@ -103,6 +124,14 @@ jobs:
       - name: Проверка замен упала
         if: steps.scrape.outcome == 'failure'
         run: echo "::warning::scraper.py завершился с ошибкой — сайт собран со старыми данными"
+
+      # упало то, что само не пройдёт (сохранение, сборка, установка) — сразу задача, без счётчика
+      - name: Сигнал о поломке
+        if: failure() && github.ref == 'refs/heads/main' && github.event_name != 'push'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEALTH_ASSIGNEE: olegskorostrel-wq
+        run: python tools/health.py --alarm "упал шаг ежечасной проверки (сохранение, сборка или установка)"
 
   deploy:
     needs: update

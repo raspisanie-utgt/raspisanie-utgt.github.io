@@ -53,7 +53,8 @@
   // «2-я неделя» — верим ему, иначе считаем от опорной даты из расписания.
   function weekNumber(date, schedule, zamena) {
     var m = zamena && zamena.title && zamena.title.match(/([12])\s*-?\s*я\s+недел/i);
-    if (m) return +m[1];
+    // заголовок не совпал с расчётом (scraper.py: week_doubt) — скорее всего, цифра прочитана неверно: верим расчёту
+    if (m && !zamena.week_doubt) return +m[1];
     var a = schedule.week_anchor;
     if (!a) return 1;
     var days = Math.round((Date.parse(date) - Date.parse(a.date)) / 86400000);
@@ -91,7 +92,10 @@
       }
       c.lessons.forEach(function (n) {
         var old = byLesson[n];
-        if (c.subject === CANCEL) {
+        if (c.subject === CANCEL && c.uncertain) {
+          // отмена распознана неуверенно — пару не убираем (вдруг она есть), а помечаем «возможно, отменена»
+          if (old) byLesson[n] = Object.assign({}, old, { maybeCancel: true, uncertain: true });
+        } else if (c.subject === CANCEL) {
           if (old) cancelled.push({ n: n, subject: old.subject, teacher: old.teacher, room: old.room });
           delete byLesson[n];
         } else {
@@ -116,13 +120,14 @@
       var l = byLesson[n], t = lessonTime(bells, wd, n);
       if (!t) return;
       var last = items[items.length - 1];
-      if (last && last.block === l.block && last.lessons[last.lessons.length - 1] === n - 1) {
+      if (last && last.block === l.block && !!last.maybeCancel === !!l.maybeCancel && last.lessons[last.lessons.length - 1] === n - 1) {
         last.lessons.push(n);
         last.end = t.end;
         return;
       }
       items.push({ lessons: [n], start: t.start, end: t.end, subject: l.subject, teacher: l.teacher,
-        room: l.room, block: l.block, changed: l.changed, was: l.was || null, uncertain: !!l.uncertain });
+        room: l.room, block: l.block, changed: l.changed, was: l.was || null, uncertain: !!l.uncertain,
+        maybeCancel: !!l.maybeCancel });
     });
     items = items.concat(extra).sort(function (a, b) { return a.start - b.start; });
     items.forEach(function (it) {
@@ -134,7 +139,7 @@
     // Отменённые уроки, которые потом заменили другим предметом, отменой не считаем
     cancelled = mergeCancelled(cancelled.filter(function (c) { return !byLesson[c.n]; }), bells, wd);
     return { date: date, weekday: wd, week: week, items: items, cancelled: cancelled,
-      changed: cancelled.length > 0 || items.some(function (i) { return i.changed; }) };
+      changed: cancelled.length > 0 || items.some(function (i) { return i.changed || i.maybeCancel; }) };
   }
 
   function mergeCancelled(list, bells, wd) {

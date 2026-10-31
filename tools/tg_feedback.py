@@ -19,9 +19,11 @@ import requests
 TG = "https://api.telegram.org/bot{token}/{method}"
 LABEL = "telegram"
 SPAM_LABEL = "возможно спам"
+# фразы, а не кусочки слов: «переходит», «ставка», «доходы» в обычном сообщении — не реклама
 SPAM_WORDS = re.compile(
-    r"(крипт|bitcoin|btc|usdt|заработ|доход|инвест|казино|ставк|выигр|бесплатн\w* деньг|"
-    r"подпис\w* на канал|переходи|промокод|скидк|продаж|реклам|onlyfans|18\+)", re.I)
+    r"(крипт|bitcoin|\bbtc\b|usdt|казино|инвестиц|пассивн\w* доход|заработ\w* (?:от|до|в день|без вложени)|"
+    r"ставк\w* на спорт|бесплатн\w* деньг|подпис\w* на (?:мой |наш )?канал|переходи(?:те)? по ссылке|"
+    r"промокод|скидк\w* \d|onlyfans|18\+)", re.I)
 LINK = re.compile(r"(https?://|t\.me/|www\.|@\w{5,}bot\b)", re.I)
 
 GREETING = ("Привет! Это бот сайта с расписанием УТЖТ.\n"
@@ -127,24 +129,33 @@ def run(bot, repo, log=print, assignee=None):
     return created
 
 
+def say(bot, chat, text, log):
+    """Ответ человеку. Не вышло (заблокировал бота — 403) — не беда: задача уже создана, а сообщение
+    иначе не подтвердилось бы Telegram и каждые 15 минут создавало бы такую же задачу снова."""
+    try:
+        bot.call("sendMessage", chat_id=chat, text=text)
+    except Exception as e:  # noqa: BLE001
+        log(f"не удалось ответить в чат: {e!r}")
+
+
 def handle(msg, bot, repo, log, assignee=None):
     """Одно сообщение. True, если создана задача."""
     if not msg or msg.get("chat", {}).get("type") != "private":
         return False
     chat = msg["chat"]["id"]
     if (msg.get("text") or "").startswith("/start"):
-        bot.call("sendMessage", chat_id=chat, text=GREETING)
+        say(bot, chat, GREETING, log)
         return False
     issue = issue_for(msg)
     if issue is None:
-        bot.call("sendMessage", chat_id=chat, text=NOT_TEXT)
+        say(bot, chat, NOT_TEXT, log)
         return False
     # назначение на человека -> пуш «Assigned» в приложении GitHub; спам никому не назначаем
     spam = SPAM_LABEL in issue[2]
     number = repo.create_issue(*issue, assignees=[assignee] if assignee and not spam else [])
     log(f"задача #{number}: {issue[0]}" + (" [спам?]" if SPAM_LABEL in issue[2] else ""))
     if SPAM_LABEL not in issue[2]:
-        bot.call("sendMessage", chat_id=chat, text=THANKS)
+        say(bot, chat, THANKS, log)
     return True
 
 

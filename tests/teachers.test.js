@@ -39,7 +39,8 @@ test("ё/е в фамилии не мешает", () => {
   assert.ok(a.lessons.length > 0);
 });
 
-const zam = (d) => { try { return read("data/zameny/" + d + ".json"); } catch (e) { return null; } };
+// замороженные образцы, а не живые data/zameny: оттуда дни старше 21 дня удаляются
+const zam = (d) => { try { return read("tests/fixtures/zameny/" + d + ".json"); } catch (e) { return null; } };
 const forGroup = (z) => (g) => z ? Object.assign({}, z, { changes: (z.all_changes || {})[g] || [] }) : null;
 
 test("день преподавателя: пары по времени, у каждой группа и кабинет", () => {

@@ -27,7 +27,14 @@
   }
   // Тот же предмет? С опечатками (в PDF есть «безопансость») и иностранный язык — по языку в скобках
   // («…в профессиональной деятельности (английский)» = «Иностранный язык (английский)»)
+  // Код дисциплины в начале: «МДК.03.01», «ПМ.02», «ОП.05» — у похожих по названию МДК он разный
+  function code(s) {
+    var m = String(s).match(/^\s*(МДК|ПМ|ОП|ОГСЭ|ЕН|УП|ПП|ПДП|ОУД|УД|СГ|ОД|ПД)[.\s]*(\d+(?:[.\s]+\d+)*)/i);
+    return m ? m[1].toUpperCase() + m[2].replace(/[.\s]+/g, ".") : null;
+  }
   function sameSubject(a, b) {
+    var ca = code(a), cb = code(b);
+    if (ca && cb && ca !== cb) return false;  // разные коды — разные предметы, даже если названия почти одинаковые
     var x = letters(a), y = letters(b);
     if (x === y || (x.length > 12 && distance(x, y) <= 3)) return true;
     var la = /язык/i.test(a) && String(a).match(/\((\S+)\)\s*$/), lb = /язык/i.test(b) && String(b).match(/\((\S+)\)\s*$/);
@@ -53,8 +60,11 @@
 
   // Пары преподавателя одной группы на дату (с заменами) и снятые с него пары
   function groupDay(who, s, date, bells, calendar, z) {
-    if (C.dayOff(date, calendar || {}, s.group) && !(z && z.changes && z.changes.length)) return { items: [], removed: [] };
-    var ag = A.build(date, s.schedule, bells, z), items = [];
+    var off = C.dayOff(date, calendar || {}, s.group);
+    if (off && !(z && z.changes && z.changes.length)) return { items: [], removed: [] };
+    // каникулы или практика, но в распоряжении есть строки для группы — только эти строки, без обычных пар
+    var base = off ? Object.assign({}, s.schedule, { days: {} }) : s.schedule;
+    var ag = A.build(date, base, bells, z), items = [];
     ag.items.forEach(function (it) {
       var names = split(it.teacher).map(norm), rooms = split(it.room), subj = split(it.subject);
       var i = names.indexOf(who), guessed = false;
@@ -64,12 +74,12 @@
       if (i < 0) return;
       items.push({ group: s.group, subject: subj[i] || subj[0], room: rooms[i] || rooms[0] || "",
         lessons: it.lessons, start: it.start, end: it.end, startText: it.startText, endText: it.endText,
-        changed: !!it.changed, guessed: guessed, uncertain: !!it.uncertain });
+        changed: !!it.changed, guessed: guessed, uncertain: !!it.uncertain, maybeCancel: !!it.maybeCancel });
     });
     // что было у него по расписанию, но после замен пропало
     var removed = [];
     if (z && z.changes && z.changes.length) {
-      A.build(date, s.schedule, bells, null).items.forEach(function (it) {
+      A.build(date, base, bells, null).items.forEach(function (it) {
         var names = split(it.teacher).map(norm), i = names.indexOf(who);
         if (i < 0) return;
         var still = items.some(function (x) { return x.start === it.start && norm(x.subject) === norm(split(it.subject)[i] || it.subject); });
@@ -97,11 +107,12 @@
         if (l.room && same.rooms.indexOf(l.room) < 0) same.rooms.push(l.room);
         same.changed = same.changed || l.changed;
         same.guessed = same.guessed || l.guessed;
+        same.maybeCancel = same.maybeCancel || l.maybeCancel;
         return;
       }
       items.push({ groups: [l.group], rooms: l.room ? [l.room] : [], subject: l.subject, lessons: l.lessons,
         start: l.start, end: l.end, startText: l.startText, endText: l.endText,
-        changed: l.changed, guessed: l.guessed, uncertain: l.uncertain });
+        changed: l.changed, guessed: l.guessed, uncertain: l.uncertain, maybeCancel: l.maybeCancel });
     });
     removed.sort(function (a, b) { return a.start - b.start; });
     return { items: items, removed: removed };

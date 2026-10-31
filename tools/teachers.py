@@ -79,7 +79,10 @@ def pdf_url():
     r = requests.get(PAGE, timeout=60, headers=UA)
     r.raise_for_status()
     soup = BeautifulSoup(r.text, "html.parser")
-    link = next(a["href"] for a in soup.select("a[href]") if a["href"].lower().endswith(".pdf"))
+    pdfs = [a for a in soup.select("a[href]") if a["href"].lower().split("?")[0].endswith(".pdf")]
+    # нужен именно список педсостава: по словам в тексте ссылки или в имени файла, а не первая PDF на странице
+    want = re.compile(r"педагог|педсостав|pedsostav|pedagog|sostav", re.I)
+    link = next((a["href"] for a in pdfs if want.search(a.get_text(" ") + " " + a["href"])), None) or pdfs[0]["href"]
     return urljoin(PAGE, link)
 
 
@@ -97,6 +100,12 @@ def main():
         tmp.close()
         args.pdf = tmp.name
     full = full_names(args.pdf)
+    old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
+    if old.get("teachers") and len(full) < 0.8 * len(old["teachers"]):
+        # PDF сменил вид или взяли не тот файл: не затираем хороший список пустым (сайт показал бы сокращения)
+        print(f"ВНИМАНИЕ: в новом списке педсостава {len(full)} имён, было {len(old['teachers'])} — оставляю старый",
+              file=sys.stderr)
+        return 1
     by_short = {s: f for s in schedule_teachers() if (f := match(s, full))}
     missing = [s for s in schedule_teachers() if s not in by_short]
     OUT.write_text(json.dumps({"source": PAGE, "pdf": source if source.startswith("http") else "",

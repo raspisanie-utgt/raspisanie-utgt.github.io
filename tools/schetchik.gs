@@ -1,6 +1,8 @@
-// Счётчик сайта расписания (скрипт Гугла, script.google.com) — пока не подключён к сайту.
+// Счётчик сайта расписания (скрипт Гугла, script.google.com); адрес — COUNTER в site/app.js.
 // Раз в день каждое устройство присылает «+1». Никаких адресов, меток и имён — только число
 // устройств за день; адрес в интернете скрипту Гугл не передаёт вовсе.
+// Накрутка: адрес открыт всем, поэтому не больше LIMIT «+1» в минуту (больше — не считаем),
+// и запрос не ждёт очереди дольше 2 с. Числу всё равно стоит верить «на глаз».
 //
 // Как поставить (с компьютера):
 // 1. script.google.com → «Создать проект» → вставить этот файл целиком → сохранить.
@@ -11,9 +13,15 @@
 //    «Запуск от имени»: Я; «У кого есть доступ»: Все → «Начать развертывание».
 // 4. Скопировать адрес, оканчивающийся на /exec, — его встроить в сайт.
 
+var LIMIT = 30;  // «+1» в минуту — с запасом: живых устройств за день несколько десятков
+
 function doGet(e) {
+  var cache = CacheService.getScriptCache(), key = "m" + Math.floor(Date.now() / 60000);
+  var n = Number(cache.get(key) || 0) + 1;
+  cache.put(key, String(n), 120);
+  if (n > LIMIT) return ContentService.createTextOutput("ok");
   var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  if (!lock.tryLock(2000)) return ContentService.createTextOutput("ok");
   try {
     var sh = list_();
     var day = Utilities.formatDate(new Date(), "Europe/Moscow", "yyyy-MM-dd");

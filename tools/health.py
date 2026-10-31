@@ -2,7 +2,9 @@
 после LIMIT неудач подряд открывает задачу «сбой» (назначенную владельцу — придёт пуш),
 после успеха закрывает её.
 
-    python tools/health.py --scrape success|failure --news success|failure
+    python tools/health.py --setup success|failure --scrape success|failure --news success|failure
+    python tools/health.py --alarm "что сломалось"   # сразу задача (если такой ещё нет) — для поломок
+                                                       # сборки и сохранения, которые сами не пройдут
 
 Переменные: GITHUB_TOKEN, GITHUB_REPOSITORY, HEALTH_ASSIGNEE (кому назначать задачу).
 """
@@ -18,10 +20,10 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "data" / "health.json"
-LIMIT = 3  # проверка идёт раз в 2 часа: 3 неудачи подряд ≈ 6 часов
+LIMIT = 3  # проверка идёт раз в час (и по сигналу сторожа): 3 неудачи подряд ≈ 3 часа
 LABEL = "сбой"
 TITLE = "Сайт не может прочитать данные с сайта техникума"
-CHECKS = {"scrape": "замены", "news": "новости"}
+CHECKS = {"setup": "установка программ (tesseract)", "scrape": "замены", "news": "новости"}
 
 
 def now():
@@ -66,6 +68,11 @@ class Repo:
         r.raise_for_status()
         return r.json()["number"]
 
+    def has_open(self):
+        r = requests.get(self._url("issues"), headers=self.h, params={"labels": LABEL, "state": "open"}, timeout=30)
+        r.raise_for_status()
+        return bool(r.json())
+
     def close_issues(self, comment):
         r = requests.get(self._url("issues"), headers=self.h, params={"labels": LABEL, "state": "open"}, timeout=30)
         r.raise_for_status()
@@ -79,8 +86,19 @@ class Repo:
 def main():
     ap = argparse.ArgumentParser()
     for k in CHECKS:
-        ap.add_argument(f"--{k}", choices=["success", "failure", "skipped"], default="success")
+        ap.add_argument(f"--{k}", choices=["success", "failure", "skipped", "cancelled", ""], default="success")
+    ap.add_argument("--alarm", help="сразу открыть задачу о сбое с этим текстом (если открытой ещё нет)")
     args = ap.parse_args()
+    if args.alarm:
+        repo = Repo(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"])
+        run = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ['GITHUB_REPOSITORY']}/actions"
+        if repo.has_open():
+            print("задача о сбое уже открыта")
+        else:
+            n = repo.open_issue(f"Ежечасная проверка упала: **{args.alarm}** ({now()} МСК). Сайт мог не обновиться. "
+                                f"Логи: {run}", os.environ.get("HEALTH_ASSIGNEE"))
+            print(f"открыта задача #{n}")
+        return 0
     results = {k: getattr(args, k) != "failure" for k in CHECKS}
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     new, action = update(state, results, now())

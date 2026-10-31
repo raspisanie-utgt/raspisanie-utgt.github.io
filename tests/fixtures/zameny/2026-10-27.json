@@ -1,0 +1,178 @@
+{
+ "date": "2026-10-27",
+ "group": "11-А",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-10-26T22:54+03:00",
+ "images": [
+  {
+   "url": "https://utgt-pgups.ru/images/27.10.2026.png",
+   "file": "2026-10-27-1.png",
+   "sha1": "ec5ba105e4c0ca2e610b6d2357cc9679aa248699",
+   "table": [
+    63,
+    385,
+    804,
+    690,
+    861,
+    707
+   ]
+  }
+ ],
+ "title": "Вторник, 2-я неделя",
+ "ocr_ok": true,
+ "ocr_uncertain": false,
+ "groups_in_order": [
+  "11-В",
+  "11-Л",
+  "21-Д",
+  "21-С",
+  "31-Д",
+  "41-А",
+  "41-П",
+  "41-С"
+ ],
+ "changes": [],
+ "all_changes": {
+  "11-В": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Биология",
+    "room": "2-5",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Литература",
+    "room": "2-18",
+    "uncertain": false
+   }
+  ],
+  "21-Д": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Транспортная система России",
+    "room": "1-31",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.01.01 Технология монтажа электронных устройств и систем",
+    "room": "1-32",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Физическая культура",
+    "room": "1-33",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технологии программирования, инсталляции и ввода в действие транспорт. радиоэлектрон. оборуд. (по видам тр.-та)",
+    "room": "1-30",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Планирование и организация работы структурного подразделения",
+    "room": "1-9",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Техническая эксплуатация железных дорог и безопасность движения",
+    "room": "1-9",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ]
+ },
+ "ocr_group_doubt": false
+}

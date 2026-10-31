@@ -108,3 +108,18 @@ test("языковая подгруппа: чужой язык скрывает�
   assert.strictEqual(A.langOf("Иностранный язык в профессиональной деятельности (английский)"), "английский");
   assert.strictEqual(A.langOf("Русский язык"), null);
 });
+
+test("неуверенная отмена: пара не исчезает, а помечена «возможно, отменена»", () => {
+  const z = (uncertain) => ({ changes: [{ lessons: [1, 2], time: null, subject: "Отменить", room: "", uncertain }] });
+  const sure = A.build("2026-10-26", schedule, bells, z(false));
+  assert.ok(!sure.items.some((i) => i.subject === "Информатика"));
+  assert.deepStrictEqual(sure.cancelled.map((c) => c.subject), ["Информатика"]);
+  const maybe = A.build("2026-10-26", schedule, bells, z(true));
+  const it = maybe.items.find((i) => i.subject === "Информатика");
+  assert.ok(it && it.maybeCancel && it.uncertain);
+  assert.deepStrictEqual(maybe.cancelled, []);
+});
+
+test("заголовок распоряжения с сомнительной неделей (week_doubt) — неделя по расчёту", () => {
+  assert.strictEqual(A.weekNumber("2026-10-27", schedule, { title: "Вторник, 1-я неделя", week_doubt: true }), 2);
+});

@@ -3,6 +3,7 @@
 const { read, URL, groups, zdays, launch, page, report, ROOT } = require('./lib');
 const A = require(ROOT + '/site/agenda.js'), C = require(ROOT + '/site/calendar.js');
 const bells = read('data/bells.json'), cal = read('data/calendar.json'), ix = read('data/groups/index.json').groups;
+const VALID_TO = read('data/groups/index.json').valid_to;
 const zam = (d) => (zdays().includes(d) ? read('data/zameny/' + d + '.json') : null);
 const forGroup = (z, g) => (z ? Object.assign({}, z, { changes: z.all_changes ? z.all_changes[g] || [] : [] }) : null);
 const SH = { 'Основы безопасности и защиты Родины': 'ОБЗР', 'Безопасность жизнедеятельности': 'БЖД' };
@@ -26,9 +27,10 @@ const addDays = (d, n) => new Date(Date.parse(d) + n * 864e5).toISOString().slic
       for (const d of [...gd].sort()) {
         if (d < '2026-09-01' || d > '2027-07-10') continue;
         const z = forGroup(zam(d), g.group);
-        let ag = A.forLanguage(A.build(d, sched, bells, z), lang);
+        // как на сайте: в каникулы и на практике — только строки замен; после valid_to — ничего (нового расписания нет)
         const off = C.dayOff(d, cal, g.group);
-        if (off && !(z && z.changes.length)) ag.items = [];
+        let ag = A.forLanguage(A.build(d, off ? Object.assign({}, sched, { days: {} }) : sched, bells, z), lang);
+        if ((off && !(z && z.changes.length)) || (VALID_TO && d > VALID_TO)) ag.items = [];
         const exp = ag.items.map((it) => it.startText + ' ' + nice(it.subject) + ' ' + (it.room || ''));
         await p.goto(URL + '?group=' + encodeURIComponent(g.group) + '&date=' + d);
         await p.waitForFunction(() => document.querySelector('#list .lesson, #list .empty') && (document.getElementById('groupName').dataset.typed || document.getElementById('groupName').textContent) !== 'Группа', null, { timeout: 15000 }).catch(() => problems.push(`${g.group} ${d}: страница не открылась`));

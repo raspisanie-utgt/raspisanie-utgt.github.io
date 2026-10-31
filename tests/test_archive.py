@@ -10,8 +10,9 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def setup(tmp_path):
+    # замороженные образцы, а не живые data/zameny: оттуда дни старше 21 дня удаляются
     z = tmp_path / "zameny"
-    shutil.copytree(ROOT / "data" / "zameny", z)
+    shutil.copytree(Path(__file__).parent / "fixtures" / "zameny", z)
     return z, tmp_path / "archive"
 
 

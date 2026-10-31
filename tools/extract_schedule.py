@@ -18,6 +18,7 @@ import pdfplumber
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "groups"
 SOURCE = "https://utgt-pgups.ru/images/Raspisanie%20ucebnyh%20zanatij%201%20semestr%202026-2027.pdf"
+VALID_TO = "2027-01-11"  # расписание 1-го семестра — до конца зимних каникул
 GROUP_RE = re.compile(r"^[1-4]1-[А-ЯЁ]$")
 NAME_RE = re.compile(r"^[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s+[А-ЯЁ]\.\s?[А-ЯЁ]\.?$")
 TAIL_NAME_RE = re.compile(r"\s([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s[А-ЯЁ]\.\s?[А-ЯЁ]\.?)$")
@@ -347,7 +348,9 @@ def main():
         index.append({"group": name, "file": f"{slug}.json", "course": int(name[0]), "verified": name in VERIFIED,
                       "pairs": n, "warnings": len(warnings)})
         print(f"{name}: {n} записей, предупреждений: {len(warnings)}")
-    (OUT / "index.json").write_text(json.dumps({"source": SOURCE, "groups": index}, ensure_ascii=False, indent=1),
+    # до какого дня действует расписание (конец зимних каникул) — после сайт пишет «нового расписания ещё нет»,
+    # а не показывает старое; при новом семестре поменять VALID_TO вместе с SOURCE
+    (OUT / "index.json").write_text(json.dumps({"source": SOURCE, "valid_to": VALID_TO, "groups": index}, ensure_ascii=False, indent=1),
                                     encoding="utf-8")
     return 0
 

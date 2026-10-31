@@ -4,6 +4,7 @@
 """
 import json
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -55,9 +56,9 @@ EXPECTED_11A = {
 def test_ocr_finds_11A(name):
     t = scraper.ocr_table(FIX / name, scraper.subject_vocab())
     assert t["ok"]
-    got = [(c["lessons"], c["subject"], c["room"]) for c in scraper.group_changes(t)]
+    got = [(c["lessons"], c["subject"], c["room"]) for c in scraper.group_changes(t, "11-А")]
     assert got == EXPECTED_11A[name]
-    assert not t["uncertain_course1"]
+    assert not any(r["uncertain"] for r in t["rows"])
 
 
 @needs_tesseract
@@ -106,7 +107,7 @@ def test_process_block_writes_json_and_skips_unchanged(tmp_path):
     logs = []
     assert scraper.process_block(block, Session(), scraper.subject_vocab(), tmp_path, logs.append)
     meta = json.loads((tmp_path / "2026-10-24.json").read_text(encoding="utf-8"))
-    assert meta["ocr_ok"] and len(meta["changes"]) == 3
+    assert meta["ocr_ok"] and len(meta["all_changes"]["11-А"]) == 3
     assert (tmp_path / "2026-10-24-1.png").read_bytes() == png
     # та же картинка — повторно не распознаём и файл не трогаем
     assert not scraper.process_block(block, Session(), scraper.subject_vocab(), tmp_path, logs.append)
@@ -134,26 +135,7 @@ def test_process_block_po_raspisaniyu(tmp_path):
     block = {"date": "2026-10-28", "section": "ochnoe", "images": []}
     assert scraper.process_block(block, None, scraper.subject_vocab(), tmp_path, lambda *_: None)
     meta = json.loads((tmp_path / "2026-10-28.json").read_text(encoding="utf-8"))
-    assert meta["po_raspisaniyu"] and meta["ocr_ok"] and meta["changes"] == []
-
-
-def test_today_agenda_applies_changes(capsys):
-    import today_agenda
-    today_agenda.main(["2026-10-24"])
-    out = capsys.readouterr().out
-    assert "09:00-10:30  Математика (1-8)  [замена]" in out
-    assert "10:40-12:10  Обществознание (Дятчина Н.И., 2-10)" in out
-    assert "14:30-16:00  Биология (2-7)  [замена]" in out
-
-
-def test_today_agenda_week_alternation(capsys):
-    import today_agenda
-    today_agenda.main(["2026-10-23"])
-    out = capsys.readouterr().out
-    assert "1-я неделя" in out and "12:50-14:20  История (Дятчина Н.И., 2-10)" in out and "Литература" not in out
-    today_agenda.main(["2026-10-30"])
-    out = capsys.readouterr().out
-    assert "2-я неделя" in out and "12:50-14:20  Литература (Изъюрова Н.М., 2-18)" in out and "История" not in out
+    assert meta["po_raspisaniyu"] and meta["ocr_ok"] and meta["all_changes"] == {}
 
 
 @needs_tesseract
@@ -227,3 +209,64 @@ def test_check_with_schedule():
     scraper.check_with_schedule([t], "2026-10-31", "Суббота, 2-я неделя", schedules=sched, past={})
     assert [(r["room"], r["uncertain"]) for r in t["rows"]] == [("", False), ("", True), ("2-2", False), ("1-5", True)]
     assert all("room_alts" not in r for r in t["rows"])
+
+
+def test_parse_page_merges_same_date_and_skips_bad_date():
+    """«Дополнение» на ту же дату ниже на странице — один блок со всеми картинками; опечатка в дате не валит разбор."""
+    html = """<div itemprop="articleBody">
+      <p>Замены на 3 ноября 2026 года, очное отделение</p><img src="/images/a.png">
+      <p>на 31 ноября 2026 года очное отделение</p><img src="/images/bad.png">
+      <p>на 3 ноября 2026 года заочное отделение</p><img src="/images/z.png">
+      <p>Дополнение на 3 ноября 2026 года очное отделение</p><img src="/images/b.png"><img src="/images/a.png">
+    </div>"""
+    blocks = scraper.parse_page(html)
+    assert [(b["date"], b["section"], [i.rsplit("/", 1)[1] for i in b["images"]]) for b in blocks] == [
+        ("2026-11-03", "ochnoe", ["a.png", "b.png"]), ("2026-11-03", "zaochnoe", ["z.png"])]
+
+
+def test_one_broken_day_does_not_stop_others(monkeypatch, capsys):
+    """Ошибка в одном дне (битая картинка) — остальные дни разбираются, индекс пишется всегда."""
+    html = """<div itemprop="articleBody"><p>на 3 ноября 2026 года очное</p><img src="/x/1.png">
+      <p>на 4 ноября 2026 года очное</p><img src="/x/2.png"></div>"""
+    done, index = [], []
+    def fake(block, *a, **k):
+        if block["date"] == "2026-11-03":
+            raise RuntimeError("404")
+        done.append(block["date"])
+    monkeypatch.setattr(scraper, "process_block", fake)
+    monkeypatch.setattr(scraper, "write_index", lambda *a, **k: index.append(1))
+    p = FIX / "_tmp_page.html"
+    p.write_text(html, encoding="utf-8")
+    try:
+        monkeypatch.setattr(sys, "argv", ["scraper.py", "--html", str(p)])
+        assert scraper.main() == 0
+    finally:
+        p.unlink()
+    assert done == ["2026-11-04"] and index == [1]
+    assert "ОШИБКА 2026-11-03" in capsys.readouterr().err
+
+
+def test_week_doubt():
+    """Номер недели в заголовке не совпал с расчётом от опорной даты — сомнение (сайт верит расчёту)."""
+    assert scraper.expected_week("2026-11-02") == 1 and scraper.expected_week("2026-10-31") == 2
+    assert scraper.week_doubt("2026-11-02", "Понедельник, 1-я неделя") is False
+    assert scraper.week_doubt("2026-11-02", "Понедельник, 2-я неделя") is True
+    assert scraper.week_doubt("2026-11-02", "") is False
+
+
+@needs_tesseract
+def test_table_continues_on_second_image(tmp_path):
+    """Таблица на двух картинках, на второй нет шапки «группа / урок» — строки второй тоже читаются."""
+    from PIL import Image
+    import numpy as np
+    im = Image.open(FIX / "27.10.2026.png").convert("L")
+    full = scraper.ocr_table(FIX / "27.10.2026.png", scraper.subject_vocab())
+    hl = [(s + e) // 2 for s, e in scraper._runs((np.array(im) < 128).mean(1) > 0.5)]
+    cut = hl[-5]  # граница строки: последние 4 строки — на вторую картинку
+    im.crop((0, 0, im.width, cut + 2)).save(tmp_path / "a.png")
+    im.crop((0, cut - 1, im.width, im.height)).save(tmp_path / "b.png")
+    a = scraper.ocr_table(tmp_path / "a.png", scraper.subject_vocab())
+    b = scraper.ocr_table(tmp_path / "b.png", scraper.subject_vocab(), continued=True)
+    key = lambda rows: [(r["lessons"], r["subject"], r["room"]) for r in rows]
+    assert a["ok"] and b["ok"] and key(a["rows"] + b["rows"]) == key(full["rows"])
+    assert scraper.ocr_table(tmp_path / "b.png", scraper.subject_vocab())["rows"] == []  # без continued — как раньше

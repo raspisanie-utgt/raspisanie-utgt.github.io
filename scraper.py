@@ -1,5 +1,5 @@
 """Скачивает страницу «Замена уроков» УТЖТ, сохраняет картинки замен
-(очное отделение) и распознаёт в них строки для группы 11-А.
+(очное отделение) и распознаёт в них строки всех групп (all_changes; сайт берёт строки своей группы оттуда).
 
 Результат: data/zameny/<YYYY-MM-DD>.json + картинки data/zameny/<YYYY-MM-DD>-<n>.png
 и сводный data/zameny/index.json, который читает сайт.
@@ -28,7 +28,6 @@ from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 
 URL = "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html"
-GROUP = "11-А"
 TZ = ZoneInfo("Europe/Moscow")  # Ухта живёт по московскому времени
 ROOT = Path(__file__).resolve().parent
 OUT_DIR = ROOT / "data" / "zameny"
@@ -85,7 +84,11 @@ def parse_page(html, base_url=URL):
         m = re.search(r"на\s+(\d{1,2})\s+([а-я]+)(?:\s+(\d{4}))?", text)
         if m and m.group(2) in MONTHS:
             year = int(m.group(3)) if m.group(3) else today.year
-            date = dt.date(year, MONTHS[m.group(2)], int(m.group(1))).isoformat()
+            try:
+                date = dt.date(year, MONTHS[m.group(2)], int(m.group(1))).isoformat()
+            except ValueError:  # опечатка на странице («на 31 ноября») — пропускаем, остальное разбираем
+                print(f"ВНИМАНИЕ: неверная дата на странице: «{m.group(0)}»", file=sys.stderr)
+                date = None
             section = None
         if "заочн" in text:
             section = "zaochnoe"
@@ -95,7 +98,23 @@ def parse_page(html, base_url=URL):
             # вместо картинки написано «по расписанию» — замен в этот день нет
             if not blocks or (blocks[-1]["date"], blocks[-1]["section"]) != (date, section):
                 blocks.append({"date": date, "section": section, "images": []})
-    return blocks
+    # одна дата и отделение встретились на странице дважды («дополнение» ниже) — один блок со всеми картинками,
+    # иначе второй затирал бы первый (тот же <дата>.json), и каждый час они менялись бы местами
+    merged = {}
+    for b in blocks:
+        m = merged.setdefault((b["date"], b["section"]), {"date": b["date"], "section": b["section"], "images": []})
+        m["images"] += [i for i in b["images"] if i not in m["images"]]
+    return list(merged.values())
+
+
+def write_atomic(path, data):
+    """Запись через временный файл: прерванный запуск не оставит полузаписанный файл."""
+    tmp = path.with_name(path.name + ".tmp")
+    if isinstance(data, bytes):
+        tmp.write_bytes(data)
+    else:
+        tmp.write_text(data, encoding="utf-8")
+    tmp.replace(path)
 
 
 # ---------- распознавание таблицы ----------
@@ -128,7 +147,7 @@ ROOM_ALT_MIN = 1  # сколько прочтений должно быть за
 
 
 def _vote(values):
-    """Самое частое из прочитанного (None — не прочиталось) и уверенность: все прочтения согласны.
+    """Самое частое из прочитанного (None — не прочиталось) и уверенность: за него не меньше VOTE_SHARE прочтений.
     Одно и то же место читаем по-разному — так случайная ошибка не проходит, а расхождение видно."""
     vals = [v for v in values if v is not None]
     if not vals:
@@ -206,11 +225,28 @@ def parse_lessons(text):
     return [], None
 
 
+SUBJ_CODE = re.compile(r"^\s*(МДК|ПМ|ОП|ОГСЭ|ЕН|УП|ПП|ПДП|ОУД|УД|СГ|ОД|ПД)[.\s]*(\d+(?:[.\s]+\d+)*)", re.I)
+
+
+def subject_code(s):
+    """«МДК.03.01 Обеспечение…» -> «МДК.03.01»; без кода — None."""
+    m = SUBJ_CODE.match(s or "")
+    return m.group(1).upper() + "." + re.sub(r"[.\s]+", ".", m.group(2)) if m else None
+
+
 def snap_subject(text, vocab):
     if not text:
         return text, True
     best = difflib.get_close_matches(text, vocab, n=1, cutoff=0.75)
     if best:
+        # похожие МДК различаются только цифрой кода («03.01» и «03.02»): если код прочитан и не совпал —
+        # берём название, но строка неуверенная (цифра могла прочитаться неверно)
+        a, b = subject_code(text), subject_code(best[0])
+        if a and b and a != b:
+            same = [v for v in vocab if subject_code(v) == a]
+            if same:
+                return difflib.get_close_matches(text, same, n=1, cutoff=0)[0], True
+            return best[0], False
         return best[0], True
     if difflib.SequenceMatcher(None, text.lower()[:9], CANCEL.lower()).ratio() > 0.7:
         return CANCEL, True
@@ -219,8 +255,10 @@ def snap_subject(text, vocab):
     return text, False
 
 
-def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None):
-    """Находит сетку таблицы и распознаёт её построчно, ячейка за ячейкой."""
+def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
+    """Находит сетку таблицы и распознаёт её построчно, ячейка за ячейкой.
+    continued — картинка продолжает таблицу с предыдущей картинки того же дня: шапки «группа / урок» на ней
+    может не быть, строки идут сразу."""
     rooms = known_rooms() if rooms is None else rooms
     im = Image.open(path).convert("L")
     ink = np.array(im) < 128
@@ -258,7 +296,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None):
             c = ImageOps.expand(c, border=c.height // 2, fill=255)
         return _tesseract(c, psm, lang, extra), dark
 
-    title, rows, in_table, group, uncertain, group_doubt = "", [], False, None, False, False
+    title, rows, in_table, group, group_doubt = "", [], continued, None, False
     group_sure = True  # группа текущего блока прочитана уверенно — следующие строки блока наследуют это
     for y0, y1 in zip(hlines, hlines[1:]):
         if y1 - y0 < 8:
@@ -266,10 +304,11 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None):
         texts = [cell(x0, x1, y0, y1, 6 if i == 2 else 7) for i, (x0, x1) in enumerate(zip(vlines, vlines[1:]))]
         raw = [t for t, _ in texts]
         joined = " ".join(raw).lower()
-        if not in_table:
+        header = "урок" in joined and ("групп" in joined or "трупп" in joined)
+        if not in_table or header or ("недел" in joined and not re.search(r"\d", raw[1] if len(raw) > 1 else "")):
             if "недел" in joined:
                 title = next(t for t in raw if "недел" in t.lower())
-            if "урок" in joined and ("групп" in joined or "трупп" in joined):
+            if header:
                 in_table = True
             continue
         g_text, g_dark = texts[0]
@@ -348,12 +387,31 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None):
         rows.append({"group": group, "lessons": lessons, "time": time, "subject": subject,
                      "room": room, "uncertain": row_uncertain or not s_ok, "raw": raw,
                      "room_alts": room_alts if len(room_alts) > 1 else []})
-        uncertain |= row_uncertain and (group or "").startswith(("1", "?"))
     return {"ok": in_table and bool(rows), "title": title, "rows": rows,
             # рамка таблицы на картинке: сайт показывает только её, крупно (x0, y0, x1, y1, ширина, высота)
             "box": [int(vlines[0]), int(hlines[0]), int(vlines[-1]), int(hlines[-1]), im.width, im.height],
-            "uncertain_course1": uncertain, "group_doubt": group_doubt,
-            "error": None if in_table else "не найдена шапка таблицы"}
+            "group_doubt": group_doubt,
+            "error": None if in_table else "не найдена шапка таблицы", "in_table": in_table}
+
+
+def expected_week(date, anchor=None):
+    """Номер недели (1/2) по расчёту от опорной даты расписания — как weekNumber в site/agenda.js."""
+    if anchor is None:
+        anchor = json.loads((ROOT / "data" / "groups" / "11a.json").read_text(encoding="utf-8")).get("week_anchor")
+    if not anchor:
+        return None
+    weeks = (dt.date.fromisoformat(date) - dt.date.fromisoformat(anchor["date"])).days // 7
+    return anchor["week"] if weeks % 2 == 0 else 3 - anchor["week"]
+
+
+def title_week(title):
+    m = re.search(r"([12])\s*-?\s*я\s+недел", title or "")
+    return int(m.group(1)) if m else None
+
+
+def week_doubt(date, title):
+    t, e = title_week(title), expected_week(date)
+    return bool(t and e and t != e)
 
 
 def check_with_schedule(tables, date, title="", schedules=None, past=None):
@@ -369,8 +427,7 @@ def check_with_schedule(tables, date, title="", schedules=None, past=None):
     if past is None:
         past = past_rooms(before=date)
     wd = dt.date.fromisoformat(date).isoweekday()
-    m = re.search(r"([12])\s*-?\s*я\s+недел", title or "")
-    week = int(m.group(1)) if m else None
+    week = expected_week(date) or title_week(title)  # заголовок распознаётся один раз — верим расчёту
     for t in tables:
         for r in t["rows"]:
             s = schedules.get(r["group"])
@@ -408,7 +465,12 @@ def past_rooms(before=None, archive=ROOT / "data" / "archive"):
     return out
 
 
-def group_changes(table, group=GROUP):
+def ocr_uncertain(tables, all_changes):
+    """Что-то в распоряжении распознано неуверенно (у любой группы) — сайт попросит сверить с картинкой."""
+    return any(t.get("group_doubt") for t in tables) or any(r["uncertain"] for rows in all_changes.values() for r in rows)
+
+
+def group_changes(table, group):
     return [{k: r[k] for k in ("lessons", "time", "subject", "room", "uncertain")}
             for r in table["rows"] if r["group"] == group]
 
@@ -451,18 +513,18 @@ def process_block(block, session, vocab, out_dir=OUT_DIR, log=print):
         log(f"{date}: без изменений")
         return False
 
-    tables, changes = [], []
+    tables = []
     for img, blob in zip(images, blobs):
-        (out_dir / img["file"]).write_bytes(blob)
-        t = ocr_table(out_dir / img["file"], vocab)
+        write_atomic(out_dir / img["file"], blob)
+        # шапка уже нашлась на предыдущей картинке дня — эта может быть продолжением таблицы без шапки
+        t = ocr_table(out_dir / img["file"], vocab, continued=any(x.get("in_table") for x in tables))
         if t.get("box"):
             img["table"] = t["box"]
         tables.append(t)
     check_with_schedule(tables, date, next((t["title"] for t in tables if t.get("title")), ""))
-    changes = [c for t in tables for c in group_changes(t)]
+    all_changes = all_group_changes(tables)
     meta = {
         "date": date,
-        "group": GROUP,
         "source": URL,
         "fetched_at": dt.datetime.now(TZ).isoformat(timespec="minutes"),
         # когда распоряжение впервые появилось на сайте техникума (по нашим проверкам; не меняется,
@@ -476,14 +538,15 @@ def process_block(block, session, vocab, out_dir=OUT_DIR, log=print):
         "title": next((t["title"] for t in tables if t.get("title")), ""),
         "po_raspisaniyu": not images,
         "ocr_ok": all(t["ok"] for t in tables),
-        "ocr_uncertain": any(t.get("uncertain_course1") for t in tables) or any(c["uncertain"] for c in changes),
+        "ocr_uncertain": ocr_uncertain(tables, all_changes),
         "ocr_group_doubt": any(t.get("group_doubt") for t in tables),
+        # номер недели в заголовке не совпал с расчётом: сайт верит расчёту и просит сверить с картинкой
+        "week_doubt": week_doubt(date, next((t["title"] for t in tables if t.get("title")), "")),
         "groups_in_order": sorted({r["group"] for t in tables for r in t["rows"] if r["group"]}),
-        "changes": changes,
-        "all_changes": all_group_changes(tables),
+        "all_changes": all_changes,
     }
-    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
-    log(f"{date}: {len(images)} картинок, для {GROUP}: {len(changes)} строк, ocr_ok={meta['ocr_ok']}")
+    write_atomic(meta_path, json.dumps(meta, ensure_ascii=False, indent=1))
+    log(f"{date}: {len(images)} картинок, групп с заменами {len(all_changes)}, ocr_ok={meta['ocr_ok']}")
     return True
 
 
@@ -494,20 +557,25 @@ def reprocess(out_dir=OUT_DIR, vocab=None, log=print):
         meta = json.loads(path.read_text(encoding="utf-8"))
         if not meta["images"]:
             continue
-        tables = [ocr_table(out_dir / i["file"], vocab) for i in meta["images"]]
+        tables = []
+        for i in meta["images"]:
+            tables.append(ocr_table(out_dir / i["file"], vocab, continued=any(x.get("in_table") for x in tables)))
         check_with_schedule(tables, meta["date"], next((t["title"] for t in tables if t.get("title")), ""))
         for i, t in zip(meta["images"], tables):
             if t.get("box"):
                 i["table"] = t["box"]
-        changes = [c for t in tables for c in group_changes(t)]
+        all_changes = all_group_changes(tables)
+        meta.pop("group", None)
+        meta.pop("changes", None)
         meta.update(title=next((t["title"] for t in tables if t.get("title")), "") or meta.get("title", ""),
                     ocr_ok=all(t["ok"] for t in tables),
-                    ocr_uncertain=any(t.get("uncertain_course1") for t in tables) or any(c["uncertain"] for c in changes),
+                    ocr_uncertain=ocr_uncertain(tables, all_changes),
                     ocr_group_doubt=any(t.get("group_doubt") for t in tables),
+                    week_doubt=week_doubt(meta["date"], next((t["title"] for t in tables if t.get("title")), "")),
                     groups_in_order=sorted({r["group"] for t in tables for r in t["rows"] if r["group"]}),
-                    changes=changes, all_changes=all_group_changes(tables))
-        path.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
-        log(f"{meta['date']}: групп с заменами {len(meta['all_changes'])}, для {GROUP}: {len(changes)}")
+                    all_changes=all_changes)
+        write_atomic(path, json.dumps(meta, ensure_ascii=False, indent=1))
+        log(f"{meta['date']}: групп с заменами {len(all_changes)}")
 
 
 def write_index(out_dir=OUT_DIR, today=None):
@@ -520,11 +588,11 @@ def write_index(out_dir=OUT_DIR, today=None):
         except ValueError:
             pass
     days = sorted(json.loads(p.read_text(encoding="utf-8"))["date"] for p in out_dir.glob("????-??-??.json"))
-    index = {"group": GROUP, "source": URL, "days": days}
+    index = {"source": URL, "days": days}
     old = (out_dir / "index.json").read_text(encoding="utf-8") if (out_dir / "index.json").exists() else ""
     new = json.dumps(index, ensure_ascii=False, indent=1)
     if old != new:
-        (out_dir / "index.json").write_text(new, encoding="utf-8")
+        write_atomic(out_dir / "index.json", new)
 
 
 def main():
@@ -541,7 +609,7 @@ def main():
 
     if args.ocr:
         t = ocr_table(args.ocr, subject_vocab())
-        print(json.dumps({**t, "changes_11A": group_changes(t)}, ensure_ascii=False, indent=1))
+        print(json.dumps(t, ensure_ascii=False, indent=1))
         return 0
 
     session = requests.Session()
@@ -560,11 +628,21 @@ def main():
     if args.offline:
         return 0
     vocab = subject_vocab()
-    for b in ochnoe:
-        process_block(b, session, vocab)
-    write_index()
-    # страница открылась, но замен не нашлось — для мониторинга это сбой (скорее всего, вёрстка)
-    return 0 if ochnoe else 2
+    failed = []
+    try:
+        for b in ochnoe:
+            try:  # одна битая картинка (например, старого дня) не мешает разобрать остальные дни
+                process_block(b, session, vocab)
+            except Exception as e:  # noqa: BLE001
+                failed.append(b["date"])
+                print(f"ОШИБКА {b['date']}: {e!r}", file=sys.stderr)
+    finally:
+        write_index()
+    # страница открылась, но замен не нашлось — для мониторинга это сбой (скорее всего, вёрстка);
+    # ошибка — только если не удалось вообще ничего
+    if not ochnoe:
+        return 2
+    return 1 if len(failed) == len(ochnoe) else 0
 
 
 if __name__ == "__main__":

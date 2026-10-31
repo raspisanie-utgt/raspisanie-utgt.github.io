@@ -3,8 +3,21 @@
   "use strict";
   var A = window.Agenda, C = window.Calendar;
   var STORE_KEY = "utgt-group", WHO_KEY = "utgt-who", TEACHER_KEY = "utgt-teacher", LANG_KEY = "utgt-lang";
-  var state = { weekOpen: {}, infoOpen: false, offset: 0, data: null, zamena: {}, group: null, teacher: null, schedules: {}, open: {}, pickWho: "group" };
+  var state = { weekOpen: {}, infoOpen: null, offset: 0, data: null, zamena: {}, group: null, teacher: null, schedules: {}, open: {}, pickWho: "group" };
   var params = new URLSearchParams(location.search);
+
+  // Старые браузеры без <dialog> (iOS до 15.4): окна открываются и закрываются атрибутом open
+  if (typeof HTMLDialogElement !== "function") {
+    document.documentElement.classList.add("no-dialog");
+    Array.prototype.forEach.call(document.querySelectorAll("dialog"), function (d) {
+      d.showModal = function () { d.setAttribute("open", ""); };
+      d.close = function () { d.removeAttribute("open"); d.dispatchEvent(new Event("close")); };
+      d.addEventListener("submit", function (e) { if (e.target.getAttribute("method") === "dialog") { e.preventDefault(); d.close(); } });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") Array.prototype.forEach.call(document.querySelectorAll("dialog[open]"), function (d) { d.close(); });
+    });
+  }
   // неправильная дата в адресе (?date=2026-13-45) — не ломаем сайт, а показываем сегодня
   (function () {
     var d = params.get("date"), t = d && Date.parse(d);
@@ -100,7 +113,7 @@
       getJSON("data/info.json").catch(function () { return null; }),
       getJSON("data/rooms.json").catch(function () { return {}; })
     ]).then(function (r) {
-      state.data = { groups: r[0].groups, bells: r[1], index: r[2], status: r[3], calendar: r[4], news: r[5],
+      state.data = { groups: r[0].groups, validTo: r[0].valid_to, bells: r[1], index: r[2], status: r[3], calendar: r[4], news: r[5],
         teachers: r[6], info: r[7], rooms: r[8] };
       state.zamena = {};
       state.loadedAt = A.moscowNow().time;
@@ -119,24 +132,40 @@
     });
   }
 
+  // Замены на дату. Не загрузились (обрыв связи, нет сохранённой копии) — это не «замен нет»:
+  // возвращаем отметку load_failed и не запоминаем её — при следующей перерисовке попробуем снова
   function zamenaFor(date) {
     if (state.data.index.days.indexOf(date) < 0) return Promise.resolve(null);
     if (state.zamena[date] !== undefined) return Promise.resolve(state.zamena[date]);
-    return getJSON("data/zameny/" + date + ".json")
-      .catch(function () { return null; })
-      .then(function (z) { state.zamena[date] = z; return z; });
+    return getJSON("data/zameny/" + date + ".json").then(function (z) { state.zamena[date] = z; return z; }, function () {
+      return { load_failed: true, ocr_ok: true, all_changes: {}, changes: [], images: [] };
+    });
+  }
+
+  // Данные давно не обновлялись (ежечасная проверка встала) — плашка об этом, а не спокойное «замен нет».
+  // Днём проверка раз в час — тревога через 3 часа; ночью проверок нет (21:47–6:47) — через 12 часов.
+  function staleHTML() {
+    var st = state.data.status || {}, at = st.checked_at && Date.parse(st.checked_at);
+    if (!at) return "";
+    var hours = (Date.now() - at) / 36e5, h = A.moscowNow().minutes / 60;
+    var when = st.checked_at.slice(8, 10) + "." + st.checked_at.slice(5, 7) + " в " + st.checked_at.slice(11, 16);
+    if (hours > (h >= 9 && h < 22 ? 3 : 12)) {
+      return "<strong>Данные не обновлялись с " + when + "</strong>Замены могли выйти позже — сверьтесь с сайтом техникума.";
+    }
+    if (st.ok === false) return "<strong>Последняя проверка сайта техникума не удалась</strong>Замены могут быть неполными — сверьтесь с сайтом техникума.";
+    return "";
   }
 
   // Распоряжение одно на весь техникум — вырезаем строки выбранной группы
   function zamenaForGroup(z, group) {
     if (!z) return null;
     var all = z.all_changes;
-    var mine = all ? (all[group] || []) : (group === z.group ? z.changes : []);
+    var mine = all ? (all[group] || []) : [];
     return Object.assign({}, z, {
       changes: mine,
       // не по всем строкам распознана группа (или название группы прочитано криво — строка может быть чьей угодно),
-      // или распоряжение старое (без разбивки по группам)
-      ocr_uncertain: !all || !!all["?"] || !!z.ocr_group_doubt || mine.some(function (c) { return c.uncertain; })
+      // или в файле нет разбивки по группам
+      ocr_uncertain: !all || !!all["?"] || !!z.ocr_group_doubt || !!z.week_doubt || mine.some(function (c) { return c.uncertain; })
     });
   }
 
@@ -192,8 +221,11 @@
     }).catch(function () {});
   }
 
+  // Каждый вызов render — новый номер: ответ, пришедший после того, как выбрали другой день,
+  // уже не рисуется (на медленном интернете иначе мог показаться не тот день)
+  function outdated(token) { return token !== render.token; }
   function render(animate) {
-    var now = A.moscowNow();
+    var now = A.moscowNow(), token = render.token = (render.token || 0) + 1;
     setClock(now.time);
     state.animNext = animate ? (animate === "next" || animate === "prev" ? animate : true) : false;
     if (animate) {
@@ -224,6 +256,7 @@
     if (state.offset === "week") return renderWeek(now);
     var date = A.addDays(params.get("date") || now.date, state.offset);
     Promise.all([scheduleFor(g), zamenaFor(date)]).then(function (r) {
+      if (outdated(token)) return;
       var schedule = r[0], z = zamenaForGroup(r[1], g);
       var ag = build(date, schedule, z);
       if (date === now.date) A.markNow(ag, now.minutes);
@@ -288,7 +321,9 @@
     var base = params.get("date") || now.date, wd = A.isoWeekday(base), g = state.group;
     var monday = A.addDays(base, wd === 7 ? 1 : 1 - wd);
     var dates = [0, 1, 2, 3, 4, 5].map(function (i) { return A.addDays(monday, i); });
+    var token = render.token;
     Promise.all([scheduleFor(g)].concat(dates.map(zamenaFor))).then(function (r) {
+      if (outdated(token)) return;
       var schedule = r[0];
       var days = dates.map(function (d, i) { return build(d, schedule, zamenaForGroup(r[i + 1], g)); });
       document.title = "Расписание УТЖТ · " + g;
@@ -331,7 +366,9 @@
 
   // Расписание дня с учётом праздников, каникул и практики из учебного графика группы
   function build(date, schedule, z) {
-    var ag = A.build(date, schedule, state.data.bells, z);
+    var off = C.dayOff(date, state.data.calendar, state.group);
+    // каникулы или практика, но в распоряжении есть строки для группы — только эти строки, без обычных пар
+    var ag = A.build(date, off ? Object.assign({}, schedule, { days: {} }) : schedule, state.data.bells, z);
     // в распоряжении о замене преподаватель не указан — подставляем того, кто ведёт этот предмет у группы
     ag.items.forEach(function (it) {
       if (it.changed && !it.teacher && it.subject !== A.CANCEL && window.Teachers) {
@@ -340,12 +377,17 @@
       }
     });
     // иностранный язык: только своя подгруппа (если язык выбран)
-    var off = C.dayOff(date, state.data.calendar, state.group);
     ag = A.forLanguage(ag, lang());
     ag.off = off;
     if (ag.off && !(z && z.changes.length)) {
       ag.items = [];
       ag.cancelled = [];
+    }
+    // расписание семестра закончилось (data/groups/index.json: valid_to), а нового ещё нет — не показываем старое
+    if (state.data.validTo && date > state.data.validTo) {
+      ag.items = [];
+      ag.cancelled = [];
+      ag.expired = true;
     }
     return ag;
   }
@@ -817,7 +859,11 @@
     $("specialty").hidden = true;
 
     var banner = $("banner"), cls = "info", html, where = isDesk() ? "справа" : "ниже"; // где картинка распоряжения
-    if (z) {
+    if (z && z.load_failed) {
+      cls = "warn";
+      html = "<strong>Не удалось загрузить замены на этот день</strong>Показано обычное расписание. Проверьте интернет " +
+        "или посмотрите замены на сайте техникума.";
+    } else if (z) {
       if (z.po_raspisaniyu) {
         cls = "ok";
         html = "<strong>Замен нет</strong>На сайте техникума: занятия по расписанию.";
@@ -856,7 +902,14 @@
       html = "<strong>Замены обновлены в " + upd.at + "</strong>Учебная часть выложила исправленное распоряжение — для " + esc(g) +
         " изменилось: " + upd.rows.length + " " + C.plural(upd.rows.length, "место", "места", "мест") + " (отмечено ниже). Расписание уже с учётом исправлений.";
     }
-    showBanner(cls, html);
+    var staleNote = staleHTML();
+    if (staleNote) { cls = "warn"; html = staleNote + '<span class="also">' + html + "</span>"; }
+    if (ag.expired) {
+      cls = "warn";
+      html = "<strong>Расписание этого семестра закончилось " + C.dayMonth(state.data.validTo) + "</strong>Нового расписания " +
+        "на сайте пока нет — смотрите на сайте техникума.";
+    }
+    showBanner(cls, html, !!(ag.expired || staleNote || upd || (z && (z.load_failed || !z.ocr_ok || z.ocr_uncertain))));
     $("infoBtn").classList.toggle("upd", !!upd);
     drawBase(ag, z, date, schedule);
 
@@ -874,7 +927,7 @@
       return "<s>" + esc(x.subject) + "</s> (" + x.startText + "–" + x.endText + ")";
     }).join(", ") : "";
     $("unverified").hidden = !!schedule.verified;
-    $("lessonHint").hidden = false;
+    $("lessonHint").hidden = !ag.items.length;
     $("shareBtn").hidden = !ag.items.length;
 
     $("images").hidden = !z || !z.images.length;
@@ -974,15 +1027,17 @@
   // Карточки пар дня (и для основного столбца, и для «следующего дня» на компьютере)
   function cardsHTML(ag, date, now, upd) {
     if (!ag.items.length) {
-      return '<div class="empty">' + (ag.off ? esc(ag.off.reason) : ag.weekday === 7 ? "Выходной" : "Занятий нет") + "</div>";
+      return '<div class="empty">' + (ag.expired ? "Расписание нового семестра на сайте ещё не появилось" : ag.off ? esc(ag.off.reason) :
+        ag.weekday === 7 ? "Выходной" : "Занятий нет") + "</div>";
     }
     return ag.items.map(function (it, idx) {
       var n = it.lessons.length ? (it.lessons[0] === 0 ? "классный час"
         : (it.lessons.length > 1 ? "уроки " + it.lessons[0] + "–" + it.lessons[it.lessons.length - 1] : "урок " + it.lessons[0])) : "";
       var tags = "";
       if (it.state === "now") tags += '<span class="tag state">идёт · ещё ' + C.minutesText(it.end - now.minutes) + "</span>";
-      if (it.changed) tags += '<span class="tag">замена</span>';
-      if (it.uncertain) tags += '<span class="tag" title="распознано неуверенно">?</span>';
+      if (it.maybeCancel) tags += '<span class="tag">возможно, отменена — сверьтесь с картинкой</span>';
+      else if (it.changed) tags += '<span class="tag">замена</span>';
+      if (it.uncertain && !it.maybeCancel) tags += '<span class="tag" title="распознано неуверенно">?</span>';
       var who = [it.teacher, it.was ? "вместо: " + it.was : ""].filter(Boolean).join(" · ");
       var key = it.startText + " " + it.subject;
       var fix = updRow(upd, it), wasLine = "";
@@ -990,7 +1045,7 @@
         tags += '<span class="tag upd">исправлено в ' + upd.at + "</span>";
         wasLine = '<div class="was-upd">до исправления: ' + (fix.was ? "<s>" + esc(fix.was.subject === A.CANCEL ? "отмена" : nice(fix.was.subject) + (fix.was.room ? ", ауд. " + fix.was.room : "")) + "</s>" : "замены не было") + "</div>";
       }
-      return (idx ? gapHTML(ag.items[idx - 1], it, date, now) : "") + '<article class="lesson ' + subjColor(it.subject) + " " + (it.state || "") + (it.changed ? " changed" : "") + (fix ? " upd" : "") +
+      return (idx ? gapHTML(ag.items[idx - 1], it, date, now) : "") + '<article class="lesson ' + subjColor(it.subject) + " " + (it.state || "") + (it.changed ? " changed" : "") + (it.maybeCancel ? " maybe" : "") + (fix ? " upd" : "") +
         (state.open[key] ? " open" : "") + '" style="--i:' + idx + '" data-key="' + esc(key) + '" tabindex="0" role="button" aria-expanded="' +
         !!state.open[key] + '">' +
         '<div class="time">' + it.startText + "<small>" + it.endText + "</small></div>" +
@@ -1119,14 +1174,17 @@
   }
 
   // Плашка о заменах спрятана за кнопкой «i» в углу рамки с парами: цвет кнопки — есть ли замены
-  function showBanner(cls, html) {
+  // urgent — данным сейчас нельзя полностью верить (устарели, не прочитаны, неуверенно, перевыложены):
+  // такая плашка открыта сразу, а не спрятана за «i». Нажатие на «i» — дальше как выберет человек.
+  function showBanner(cls, html, urgent) {
     var banner = $("banner"), btn = $("infoBtn");
+    var open = state.infoOpen === null ? !!urgent : state.infoOpen;
     banner.className = "banner " + cls;
     banner.innerHTML = html;
-    banner.hidden = !state.infoOpen;
+    banner.hidden = !open;
     btn.hidden = false;
     btn.className = "info-btn " + cls;
-    btn.setAttribute("aria-expanded", String(state.infoOpen));
+    btn.setAttribute("aria-expanded", String(open));
     btn.title = html.replace("</strong>", ". ").replace(/<[^>]+>/g, "");
   }
 
@@ -1295,10 +1353,12 @@
   // Пары преподавателя на дату по расписаниям всех групп и заменам
   function teacherDay(date) {
     return Promise.all([allGroups(), zamenaFor(date)]).then(function (r) {
-      var d = Teachers.day(state.teacher, date, r[0], state.data.bells, state.data.calendar,
+      var expired = state.data.validTo && date > state.data.validTo;  // семестр закончился — старое не показываем
+      var d = Teachers.day(state.teacher, date, expired ? [] : r[0], state.data.bells, state.data.calendar,
         function (g) { return zamenaForGroup(r[1], g); });
       d.z = r[1];
       d.week = A.weekNumber(date, r[0][0].schedule, r[1]);
+      d.expired = !!expired;
       d.weekday = A.isoWeekday(date);
       d.holiday = (state.data.calendar.holidays || []).filter(function (h) { return h.date === date; })[0] || null;
       return d;
@@ -1321,7 +1381,9 @@
     var date = A.addDays(params.get("date") || now.date, state.offset);
     $("dayHeadT").textContent = dayLabel(date, now);
     $("dayHeadM").textContent = "";
+    var token = render.token;
     teacherDay(date).then(function (d) {
+      if (outdated(token)) return;
       teacherHeader();
       setTitle(A.humanDate(date));
       $("week").textContent = d.weekday === 7 ? "" : d.week + "-я неделя";
@@ -1335,10 +1397,14 @@
 
       var banner = $("banner"), cls = "info", html, where = isDesk() ? "справа" : "ниже"; // где картинка распоряжения
       // распознано неуверенно (у любой группы: перепутанная группа может оказаться чьей угодно) — сверить с картинкой
-      var unsure = d.z && !d.z.po_raspisaniyu && (d.z.ocr_group_doubt || Object.keys(d.z.all_changes || {}).some(function (g) {
+      var unsure = d.z && !d.z.po_raspisaniyu && (d.z.ocr_group_doubt || d.z.week_doubt || Object.keys(d.z.all_changes || {}).some(function (g) {
         return g === "?" || d.z.all_changes[g].some(function (r) { return r.uncertain; });
       }));
-      if (d.z && !d.z.po_raspisaniyu && !d.z.ocr_ok) {
+      if (d.z && d.z.load_failed) {
+        cls = "warn";
+        html = "<strong>Не удалось загрузить замены на этот день</strong>Показано обычное расписание. Проверьте интернет " +
+          "или посмотрите замены на сайте техникума.";
+      } else if (d.z && !d.z.po_raspisaniyu && !d.z.ocr_ok) {
         cls = "warn";
         html = "<strong>Замены опубликованы, но таблицу распознать не удалось</strong>Посмотрите картинку " + where + ".";
       } else if (d.z && !d.z.po_raspisaniyu) {
@@ -1358,7 +1424,14 @@
       } else {
         html = "<strong>Замен на этот день пока нет</strong>Обычно их публикуют накануне. Сайт проверяет страницу замен несколько раз в день.";
       }
-      showBanner(cls, html);
+      var staleNote = staleHTML();
+      if (staleNote) { cls = "warn"; html = staleNote + '<span class="also">' + html + "</span>"; }
+      if (d.expired) {
+        cls = "warn";
+        html = "<strong>Расписание этого семестра закончилось " + C.dayMonth(state.data.validTo) + "</strong>Нового расписания " +
+          "на сайте пока нет — смотрите на сайте техникума.";
+      }
+      showBanner(cls, html, !!(d.expired || staleNote || unsure || (d.z && (d.z.load_failed || !d.z.ocr_ok))));
       $("base").hidden = true;
 
       var list = $("list");
@@ -1367,8 +1440,9 @@
         var gapRow = idx ? gapHTML(d.items[idx - 1], it, date, now) : "";
         var tags = "";
         if (it.state === "now") tags += '<span class="tag state">идёт · ещё ' + C.minutesText(it.end - now.minutes) + "</span>";
-        if (it.changed) tags += '<span class="tag">замена</span>';
-        if (it.uncertain) tags += '<span class="tag" title="распознано неуверенно">?</span>';
+        if (it.maybeCancel) tags += '<span class="tag">возможно, отменена — сверьтесь с картинкой</span>';
+        else if (it.changed) tags += '<span class="tag">замена</span>';
+        if (it.uncertain && !it.maybeCancel) tags += '<span class="tag" title="распознано неуверенно">?</span>';
         var n = lessonsLabel(it.lessons);
         return gapRow + '<article class="lesson tlesson ' + subjColor(it.subject) + " " + (it.state || "") + (it.changed ? " changed" : "") + '" style="--i:' + idx + '">' +
           '<div class="time">' + it.startText + "<small>" + it.endText + "</small></div>" +
@@ -1400,7 +1474,9 @@
     var base = params.get("date") || now.date, wd = A.isoWeekday(base);
     var monday = A.addDays(base, wd === 7 ? 1 : 1 - wd);
     var dates = [0, 1, 2, 3, 4, 5].map(function (i) { return A.addDays(monday, i); });
+    var token = render.token;
     Promise.all(dates.map(teacherDay)).then(function (days) {
+      if (outdated(token)) return;
       teacherHeader();
       setTitle("Неделя: " + C.dayMonth(dates[0]) + " — " + C.dayMonth(dates[5]));
       $("week").textContent = days[0].week + "-я неделя";
@@ -1703,7 +1779,7 @@
   drawTheme(false);
 
   $("infoBtn").addEventListener("click", function () {
-    state.infoOpen = !state.infoOpen;
+    state.infoOpen = $("banner").hidden;
     $("banner").hidden = !state.infoOpen;
     this.setAttribute("aria-expanded", String(state.infoOpen));
   });

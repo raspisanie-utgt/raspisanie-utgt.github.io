@@ -1,0 +1,41 @@
+{
+ "files": {
+  "расписание занятий": {
+   "url": "https://utgt-pgups.ru/images/Raspisanie%20ucebnyh%20zanatij%201%20semestr%202026-2027.pdf",
+   "fp": {
+    "size": "307209",
+    "modified": "Sun, 30 Aug 2026 17:58:43 GMT",
+    "etag": "\"6a946f53-4b009\""
+   }
+  },
+  "звонки": {
+   "url": "https://utgt-pgups.ru/images/Raspisanie%20zvonkov%20na%202026-2027%20ucebnyj%20god.pdf",
+   "fp": {
+    "size": "356287",
+    "modified": "Tue, 15 Sep 2026 05:19:49 GMT",
+    "etag": "\"6aa8d575-56fbf\""
+   }
+  },
+  "учебный график": {
+   "url": "https://utgt-pgups.ru/images/Svodnyj%20KUG%20ocnoe%20otdelenie%202026-2027%20ucebnyj%20god.pdf",
+   "fp": {
+    "size": "1675487",
+    "modified": "Wed, 02 Sep 2026 19:29:56 GMT",
+    "etag": "\"6a987934-1990df\""
+   }
+  },
+  "педсостав": {
+   "url": "https://utgt-pgups.ru/images/Pedsostav_%2010.09.2026_sajt1.pdf",
+   "fp": {
+    "size": "631097",
+    "modified": "Tue, 22 Sep 2026 05:30:01 GMT",
+    "etag": "\"6ab21259-9a139\""
+   }
+  }
+ },
+ "page_pdfs": [
+  "https://utgt-pgups.ru/images/Raspisanie%20ucebnyh%20zanatij%201%20semestr%202026-2027.pdf",
+  "https://utgt-pgups.ru/images/Raspisanie%20zvonkov%20na%202026-2027%20ucebnyj%20god.pdf",
+  "https://utgt-pgups.ru/images/Svodnyj%20KUG%20ocnoe%20otdelenie%202026-2027%20ucebnyj%20god.pdf"
+ ]
+}

@@ -10,7 +10,8 @@
 var PAGE = "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html";
 var WORKFLOW = "https://api.github.com/repos/raspisanie-utgt/raspisanie-utgt.github.io/actions/workflows/update.yml/dispatches";
 
-// «Отпечаток» страницы: картинки распоряжений и текст статьи (без календаря событий, он меняется сам)
+// «Отпечаток» страницы: картинки распоряжений (адрес и содержимое — учебная часть может перезалить
+// исправленную картинку под тем же именем) и текст статьи (без календаря событий, он меняется сам)
 function otpechatok_() {
   var r = UrlFetchApp.fetch(PAGE, { muteHttpExceptions: true, followRedirects: true });
   if (r.getResponseCode() !== 200) return null;
@@ -21,8 +22,16 @@ function otpechatok_() {
   var body = html.substring(start, end > 0 ? end : start + 30000);
   var imgs = (body.match(/<img[^>]+src="[^"#]+/g) || []).filter(function (s) { return s.indexOf("new_2026") < 0; });
   var text = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  var base = PAGE.replace(/^(https?:\/\/[^\/]+).*$/, "$1");
+  var sums = imgs.map(function (s) {
+    var src = s.replace(/^.*src="/, ""), url = /^https?:/.test(src) ? src : base + (src.charAt(0) === "/" ? "" : "/") + src;
+    try {
+      var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      return r.getResponseCode() === 200 ? Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, r.getContent())) : "нет";
+    } catch (e) { return "нет"; }
+  });
   return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5,
-    imgs.join("|") + "|" + text, Utilities.Charset.UTF_8));
+    imgs.join("|") + "|" + sums.join("|") + "|" + text, Utilities.Charset.UTF_8));
 }
 
 function storozh() {

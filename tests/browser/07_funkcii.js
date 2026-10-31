@@ -40,11 +40,13 @@ const { URL, lastZ, launch, page, open, report, tab, openWhere, openHistory } = 
     if (s.mob) await step(T + 'кнопка «i»', async () => {
       for (const d of ['0', '1']) {
         await tab(p, d); await p.waitForTimeout(600);
+        // важная плашка (неуверенно, не прочитано, данные устарели) открыта сразу, обычная — закрыта
+        const first = await p.evaluate(() => !document.getElementById('banner').hidden);
         for (let i = 0; i < 4; i++) {
           await p.click('#infoBtn'); await p.waitForTimeout(250);
           const r = await p.evaluate(() => { const i = document.getElementById('infoBtn').getBoundingClientRect(), t = document.querySelector('.tabs').getBoundingClientRect(); const hit = document.elementFromPoint(i.left + i.width / 2, i.top + 4); return { gap: i.top - t.bottom, top: !!hit && !!hit.closest('#infoBtn'), open: !document.getElementById('banner').hidden }; });
           ok(r.gap >= 0 && r.top, T + 'кнопка «i» под вкладками');
-          ok(r.open === (i % 2 === 0), T + 'плашка о заменах не переключается');
+          ok(r.open === (i % 2 === 0 ? !first : first), T + 'плашка о заменах не переключается');
         }
       }
       await tab(p, '0');
