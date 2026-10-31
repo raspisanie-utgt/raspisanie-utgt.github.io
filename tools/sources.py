@@ -83,11 +83,11 @@ def open_issue(text, title="Изменились исходные PDF на са�
 
 
 def main():
-    notice = ROOT / "data" / "week_anchor_changed.txt"
-    if notice.exists():  # scraper.py перенёс опорную неделю — сообщить человеку
-        n = open_issue(notice.read_text(encoding="utf-8"), "Сменилась нумерация недель", "Если это ошибка — верните "
-                       "`week_anchor` в `data/groups/*.json`.")
-        print(f"сообщил о смене нумерации недель: задача #{n}" if n else "смена нумерации недель (без ключа задачу не открыть)")
+    notice = ROOT / "data" / "notices.txt"
+    if notice.exists():  # заметки от scraper.py (сменилась нумерация недель, устарела ручная поправка замен)
+        n = open_issue(notice.read_text(encoding="utf-8"), "Сайт просит проверить", "Сайт уже работает дальше сам; "
+                       "это просьба сверить, что всё верно.")
+        print(f"заметки для человека — задача #{n}" if n else "есть заметки для человека (без ключа задачу не открыть)")
         if n:
             notice.unlink()
     old = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}

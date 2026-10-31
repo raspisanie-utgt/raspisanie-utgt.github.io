@@ -38,7 +38,7 @@ def minify_json(data_dir):
 def webp_images(zameny_dir):
     """Картинки распоряжений ещё и в WebP без потерь — в 2–2,5 раза легче PNG, качество то же."""
     from PIL import Image
-    for png in zameny_dir.glob("*.png"):
+    for png in sorted(zameny_dir.glob("*.png")) + sorted(zameny_dir.glob("*.jpg")):
         with Image.open(png) as im:
             im.save(png.with_suffix(".webp"), "WEBP", lossless=True, method=4)
 

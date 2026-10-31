@@ -7,8 +7,8 @@ const T = require("../site/teachers.js");
 
 const root = path.join(__dirname, "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(root, p), "utf8"));
-const bells = read("data/bells.json"), cal = read("data/calendar.json");
-const schedules = read("data/groups/index.json").groups.map((g) => ({ group: g.group, schedule: read("data/groups/" + g.file) }));
+const bells = read("tests/fixtures/data/bells.json"), cal = read("tests/fixtures/data/calendar.json");
+const schedules = read("tests/fixtures/data/groups/index.json").groups.map((g) => ({ group: g.group, schedule: read("tests/fixtures/data/groups/" + g.file) }));
 const at = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3);
 
 test("Трудова во вторник 27.10 в 11:00 — урок у 11-В в 1-8, дальше 11-Л", () => {

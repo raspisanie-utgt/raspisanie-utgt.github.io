@@ -46,15 +46,17 @@
     "05-01": "Праздник Весны и Труда", "05-09": "День Победы", "06-12": "День России", "11-04": "День народного единства" };
 
   // Учебный год, который покрывает график: с 1 сентября до последнего дня периодов (обычно 31 августа)
+  var RANGE = typeof WeakMap === "function" ? new WeakMap() : null;  // посчитанное — без пометок в самом графике
   function covered(date, cal) {
-    if (!cal._end) {
+    var r = RANGE && RANGE.get(cal);
+    if (!r) {
       var end = "";
       Object.keys(cal.groups || {}).forEach(function (g) { periods(cal, g).forEach(function (p) { if (p.to > end) end = p.to; }); });
       (cal.holidays || []).forEach(function (h) { if (h.date > end) end = h.date; });
-      cal._end = end || "0000";
-      cal._start = end ? (+end.slice(0, 4) - 1) + "-09-01" : "9999";
+      r = { start: end ? (+end.slice(0, 4) - 1) + "-09-01" : "9999", end: end || "0000" };
+      if (RANGE) RANGE.set(cal, r);
     }
-    return date >= cal._start && date <= cal._end;
+    return date >= r.start && date <= r.end;
   }
 
   function holiday(date, cal) {

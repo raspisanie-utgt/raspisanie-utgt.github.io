@@ -30,6 +30,8 @@ from PIL import Image, ImageOps
 URL = "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html"
 TZ = ZoneInfo("Europe/Moscow")  # Ухта живёт по московскому времени
 ROOT = Path(__file__).resolve().parent
+# данные сайта; тесты подменяют на замороженный снимок (tests/conftest.py)
+DATA = ROOT / "data"
 OUT_DIR = ROOT / "data" / "zameny"
 KEEP_DAYS = 21
 
@@ -86,17 +88,22 @@ def parse_page(html, base_url=URL):
             year = int(m.group(3)) if m.group(3) else today.year
             try:
                 d = dt.date(year, MONTHS[m.group(2)], int(m.group(1)))
-                if not m.group(3) and abs((d - today).days) > 180:
-                    # год не написан, а дата за полгода от сегодня — это соседний год («на 2 января» 30 декабря)
-                    d = d.replace(year=year + (1 if d < today else -1))
+                if abs((d - today).days) > 180:
+                    # дата за полгода от сегодня — соседний год: «на 2 января» без года 30 декабря, или по привычке
+                    # «на 12 января 2026 года» в январе 2027 (такая дата сразу удалилась бы как старая)
+                    fixed = d.replace(year=year + (1 if d < today else -1))
+                    if m.group(3):
+                        print(f"ВНИМАНИЕ: на странице «{m.group(0)}» — похоже, ошибка в годе, беру {fixed.isoformat()}", file=sys.stderr)
+                    d = fixed
                 date = d.isoformat()
             except ValueError:  # опечатка на странице («на 31 ноября») — пропускаем, остальное разбираем
                 print(f"ВНИМАНИЕ: неверная дата на странице: «{m.group(0)}»", file=sys.stderr)
                 date = None
             section = None
-        if "заочн" in text:
+        # целым словом: «срочно», «досрочно», «уточнение» тоже содержат «очн»
+        if re.search(r"(^|[^а-яё])заочн", text):
             section = "zaochnoe"
-        elif "очн" in text:
+        elif re.search(r"(^|[^а-яё])очн(ое|ого|ому|ым|ом|ая|ой|ую|ые|ых)?([^а-яё]|$)", text):
             section = "ochnoe"
         if "по расписанию" in text and date and section:
             # вместо картинки написано «по расписанию» — замен в этот день нет
@@ -175,12 +182,12 @@ def normalize_group(text):
 def known_rooms():
     """Кабинеты из расписаний групп и data/rooms.json — чтобы ловить мусор распознавания."""
     rooms = set()
-    for path in sorted((ROOT / "data" / "groups").glob("*.json")):
+    for path in sorted((DATA / "groups").glob("*.json")):
         sched = json.loads(path.read_text(encoding="utf-8"))
         for day in sched.get("days", {}).values():
             for l in day:
                 rooms |= {r.strip() for r in str(l.get("room") or "").split(" / ") if r.strip()}
-    extra = ROOT / "data" / "rooms.json"
+    extra = DATA / "rooms.json"
     if extra.exists():
         extra_data = json.loads(extra.read_text(encoding="utf-8"))
         rooms |= set(extra_data.get("rooms", {})) | set(extra_data.get("other_rooms", []))
@@ -401,7 +408,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
 def expected_week(date, anchor=None):
     """Номер недели (1/2) по расчёту от опорной даты расписания — как weekNumber в site/agenda.js."""
     if anchor is None:
-        anchor = json.loads((ROOT / "data" / "groups" / "11a.json").read_text(encoding="utf-8")).get("week_anchor")
+        anchor = json.loads((DATA / "groups" / "11a.json").read_text(encoding="utf-8")).get("week_anchor")
     if not anchor:
         return None
     weeks = (dt.date.fromisoformat(date) - dt.date.fromisoformat(anchor["date"])).days // 7
@@ -418,7 +425,7 @@ def fix_week_anchor(out_dir=OUT_DIR, groups_dir=ROOT / "data" / "groups", log=pr
     расписания групп, и сайт дальше считает по-новому сам. Чтобы не сработать на ошибку (в шаблоне распоряжения забыли
     поменять номер недели, неверно распознан заголовок), нужно: распоряжения из двух разных календарных недель подряд,
     номера в них чередуются (1 -> 2 или 2 -> 1), и ни одно из последних трёх не сходится с расчётом. Перенос записывается
-    в data/week_anchor_changed.txt — ежечасная проверка открывает об этом задачу. True, если перенесли."""
+    в data/notices.txt — ежечасная проверка открывает об этом задачу. True, если перенесли."""
     anchor_now = next((json.loads(p.read_text(encoding="utf-8")).get("week_anchor") for p in sorted(groups_dir.glob("*.json"))
                        if p.name != "index.json" and "week_anchor" in json.loads(p.read_text(encoding="utf-8"))), None)
     days = []
@@ -445,10 +452,40 @@ def fix_week_anchor(out_dir=OUT_DIR, groups_dir=ROOT / "data" / "groups", log=pr
             s["week_anchor"] = anchor
             write_atomic(path, json.dumps(s, ensure_ascii=False, indent=1))
     note = (f"Сменилась нумерация недель: распоряжения {', '.join(d for d, _ in last)} называют другую неделю, чем по расчёту. "
-            f"Опорная неделя теперь {anchor['date']} — {anchor['week']}-я. Проверьте по распоряжениям, что это так.")
-    write_atomic(groups_dir.parent / "week_anchor_changed.txt", note)
+            f"Опорная неделя теперь {anchor['date']} — {anchor['week']}-я. Проверьте по распоряжениям, что это так; если нет — "
+            f"верните week_anchor в data/groups/*.json.")
+    add_notice(note, groups_dir.parent / "notices.txt")
     log(note)
     return True
+
+
+def add_notice(text, path=ROOT / "data" / "notices.txt"):
+    """Заметка человеку: ежечасная проверка (tools/sources.py) откроет по ней задачу на GitHub."""
+    old = path.read_text(encoding="utf-8") if path.exists() else ""
+    write_atomic(path, old + text.strip() + "\n")
+
+
+POPRAVKI = ROOT / "data" / "zameny_popravki.json"
+
+
+def apply_manual(meta, popravki=None, notices=ROOT / "data" / "notices.txt"):
+    """Ручная поправка дня (data/zameny_popravki.json, сверено с картинкой человеком) — поверх распознавания,
+    пока картинки распоряжения те же. Перезалили картинку — поправка не подходит: остаётся распознанное,
+    а человеку — заметка (задача)."""
+    if popravki is None:
+        popravki = json.loads(POPRAVKI.read_text(encoding="utf-8")) if POPRAVKI.exists() else {}
+    p = popravki.get("days", {}).get(meta["date"])
+    if not p:
+        return meta
+    if p["images"] != [i["sha1"] for i in meta["images"]]:
+        meta["manual_outdated"] = True
+        add_notice(f"{meta['date']}: учебная часть перезалила распоряжение — ручная поправка замен больше не подходит, "
+                   f"на сайте снова распознанное автоматически. Сверьте с картинкой и обновите data/zameny_popravki.json.", notices)
+        return meta
+    meta.update(all_changes=p["all_changes"], title=p.get("title") or meta.get("title", ""), ocr_ok=True, ocr_uncertain=False,
+                ocr_group_doubt=False, groups_in_order=sorted(p["all_changes"]), checked_by_hand=p.get("note") or True)
+    meta.pop("manual_outdated", None)
+    return meta
 
 
 def week_doubt(date, title):
@@ -463,8 +500,8 @@ def check_with_schedule(tables, date, title="", schedules=None, past=None):
     - отменяют уроки, которых у группы в этот день по расписанию нет, — скорее всего, неверно
       прочитана группа или номера уроков: строка неуверенная."""
     if schedules is None:
-        idx = json.loads((ROOT / "data" / "groups" / "index.json").read_text(encoding="utf-8"))
-        schedules = {g["group"]: json.loads((ROOT / "data" / "groups" / g["file"]).read_text(encoding="utf-8"))
+        idx = json.loads((DATA / "groups" / "index.json").read_text(encoding="utf-8"))
+        schedules = {g["group"]: json.loads((DATA / "groups" / g["file"]).read_text(encoding="utf-8"))
                      for g in idx["groups"]}
     if past is None:
         past = past_rooms(before=date)
@@ -492,9 +529,10 @@ def check_with_schedule(tables, date, title="", schedules=None, past=None):
     return tables
 
 
-def past_rooms(before=None, archive=ROOT / "data" / "archive"):
+def past_rooms(before=None, archive=None):
     """Кабинеты из прошлых распоряжений: {(группа, предмет): {кабинеты}} — чтобы решать ничью по кабинету."""
     import gzip
+    archive = archive or DATA / "archive"
     out = {}
     for p in sorted(archive.glob("????-??.json.gz")):
         for date, z in json.loads(gzip.decompress(p.read_bytes()).decode("utf-8")).items():
@@ -532,7 +570,7 @@ def all_group_changes(tables):
 
 def subject_vocab():
     names = set()
-    for path in sorted((ROOT / "data" / "groups").glob("*.json")):
+    for path in sorted((DATA / "groups").glob("*.json")):
         sched = json.loads(path.read_text(encoding="utf-8"))
         names |= {l["subject"] for day in sched.get("days", {}).values() for l in day}
     return sorted(names | set(EXTRA_SUBJECTS))
@@ -550,7 +588,8 @@ def process_block(block, session, vocab, out_dir=OUT_DIR, log=print):
         r = session.get(url, timeout=60, headers=UA)
         r.raise_for_status()
         blobs.append(r.content)
-        images.append({"url": url, "file": f"{date}-{i}.png", "sha1": hashlib.sha1(r.content).hexdigest()})
+        ext = ".jpg" if r.content[:2] == b"\xff\xd8" else ".png"  # бывает и JPEG — имя по содержимому
+        images.append({"url": url, "file": f"{date}-{i}{ext}", "sha1": hashlib.sha1(r.content).hexdigest()})
     if old and [i["sha1"] for i in old["images"]] == [i["sha1"] for i in images]:
         log(f"{date}: без изменений")
         return False
@@ -587,6 +626,7 @@ def process_block(block, session, vocab, out_dir=OUT_DIR, log=print):
         "groups_in_order": sorted({r["group"] for t in tables for r in t["rows"] if r["group"]}),
         "all_changes": all_changes,
     }
+    apply_manual(meta)
     write_atomic(meta_path, json.dumps(meta, ensure_ascii=False, indent=1))
     log(f"{date}: {len(images)} картинок, групп с заменами {len(all_changes)}, ocr_ok={meta['ocr_ok']}")
     return True
@@ -616,6 +656,7 @@ def reprocess(out_dir=OUT_DIR, vocab=None, log=print):
                     week_doubt=week_doubt(meta["date"], next((t["title"] for t in tables if t.get("title")), "")),
                     groups_in_order=sorted({r["group"] for t in tables for r in t["rows"] if r["group"]}),
                     all_changes=all_changes)
+        apply_manual(meta)
         write_atomic(path, json.dumps(meta, ensure_ascii=False, indent=1))
         log(f"{meta['date']}: групп с заменами {len(all_changes)}")
 
@@ -685,7 +726,9 @@ def main():
     # ошибка — только если не удалось вообще ничего
     if not ochnoe:
         return 2
-    return 1 if len(failed) == len(ochnoe) else 0
+    # хоть один день не разобрался — сбой (tools/health.py считает подряд и после трёх откроет задачу),
+    # остальные дни при этом уже сохранены
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

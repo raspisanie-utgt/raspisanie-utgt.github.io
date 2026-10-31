@@ -10,6 +10,7 @@ import pdfplumber
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+FIXD = Path(__file__).parent / "fixtures" / "data"  # замороженный снимок данных, а не живые data/
 sys.path.insert(0, str(ROOT / "tools"))
 import extract_schedule as E  # noqa: E402
 
@@ -29,7 +30,7 @@ def test_all_groups_found(sheet):
 def test_11A_matches_hand_checked_schedule(sheet):
     days, warnings = sheet.group("11-А")
     assert warnings == []
-    assert days == json.loads((ROOT / "data" / "groups" / "11a.json").read_text(encoding="utf-8"))["days"]
+    assert days == json.loads((FIXD / "groups" / "11a.json").read_text(encoding="utf-8"))["days"]
 
 
 def test_21P_matches_pdf_by_eye(sheet):
@@ -94,7 +95,7 @@ def test_popravki_rename_subject_and_fix_room():
     days = {"2": [{"lessons": [3, 4], "subject": "Иностранный язык (английский)", "teacher": "Баякчан Л.А.", "room": "1-15"}],
             "4": [{"lessons": [5, 6], "subject": "МДК.02.01 Основы технического обслуживания устройств и систем СЦБ и ЖАТ",
                    "teacher": "Туйманов Ю.Н.", "room": "1-30"}]}
-    pop = json.loads((ROOT / "data" / "popravki.json").read_text(encoding="utf-8"))
+    pop = json.loads((FIXD / "popravki.json").read_text(encoding="utf-8"))
     E.apply_popravki("21-Л", days, pop)
     assert days["2"][0]["room"] == "2-15" and "Баякчан" in days["2"][0]["note"]
     assert days["4"][0]["subject"] == "МДК.02.01 Основы технического обслуживания устройств систем СЦБ и ЖАТ"

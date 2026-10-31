@@ -1,0 +1,158 @@
+{
+ "source": "https://utgt-pgups.ru/images/Raspisanie%20ucebnyh%20zanatij%201%20semestr%202026-2027.pdf",
+ "valid_to": "2027-01-11",
+ "groups": [
+  {
+   "group": "11-П",
+   "file": "11p.json",
+   "course": 1,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "11-Д",
+   "file": "11d.json",
+   "course": 1,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "11-А",
+   "file": "11a.json",
+   "course": 1,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "11-С",
+   "file": "11s.json",
+   "course": 1,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "11-В",
+   "file": "11v.json",
+   "course": 1,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "11-Л",
+   "file": "11l.json",
+   "course": 1,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "21-П",
+   "file": "21p.json",
+   "course": 2,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "21-Д",
+   "file": "21d.json",
+   "course": 2,
+   "verified": true,
+   "pairs": 21,
+   "warnings": 0
+  },
+  {
+   "group": "21-А",
+   "file": "21a.json",
+   "course": 2,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "21-С",
+   "file": "21s.json",
+   "course": 2,
+   "verified": true,
+   "pairs": 21,
+   "warnings": 0
+  },
+  {
+   "group": "21-Л",
+   "file": "21l.json",
+   "course": 2,
+   "verified": true,
+   "pairs": 23,
+   "warnings": 0
+  },
+  {
+   "group": "31-П",
+   "file": "31p.json",
+   "course": 3,
+   "verified": true,
+   "pairs": 21,
+   "warnings": 0
+  },
+  {
+   "group": "31-Д",
+   "file": "31d.json",
+   "course": 3,
+   "verified": true,
+   "pairs": 21,
+   "warnings": 0
+  },
+  {
+   "group": "31-А",
+   "file": "31a.json",
+   "course": 3,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "31-С",
+   "file": "31s.json",
+   "course": 3,
+   "verified": true,
+   "pairs": 21,
+   "warnings": 0
+  },
+  {
+   "group": "41-П",
+   "file": "41p.json",
+   "course": 4,
+   "verified": true,
+   "pairs": 22,
+   "warnings": 0
+  },
+  {
+   "group": "41-Д",
+   "file": "41d.json",
+   "course": 4,
+   "verified": true,
+   "pairs": 20,
+   "warnings": 0
+  },
+  {
+   "group": "41-А",
+   "file": "41a.json",
+   "course": 4,
+   "verified": true,
+   "pairs": 21,
+   "warnings": 0
+  },
+  {
+   "group": "41-С",
+   "file": "41s.json",
+   "course": 4,
+   "verified": true,
+   "pairs": 20,
+   "warnings": 0
+  }
+ ]
+}

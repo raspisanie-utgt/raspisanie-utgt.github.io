@@ -6,8 +6,8 @@ const fs = require("node:fs");
 const A = require("../site/agenda.js");
 
 const root = path.join(__dirname, "..");
-const schedule = JSON.parse(fs.readFileSync(path.join(root, "data/groups/11a.json"), "utf8"));
-const bells = JSON.parse(fs.readFileSync(path.join(root, "data/bells.json"), "utf8"));
+const schedule = JSON.parse(fs.readFileSync(path.join(root, "tests/fixtures/data/groups/11a.json"), "utf8"));
+const bells = JSON.parse(fs.readFileSync(path.join(root, "tests/fixtures/data/bells.json"), "utf8"));
 const brief = (ag) => ag.items.map((i) => `${i.startText}-${i.endText} ${i.subject} ${i.room}${i.changed ? " *" : ""}`);
 
 test("понедельник 26.10 без замен", () => {
@@ -139,4 +139,22 @@ test("данные давно не обновлялись", () => {
   assert.strictEqual(A.staleSince(st, new Date("2026-10-31T17:00:00+03:00")), "");
   assert.strictEqual(A.staleSince(st, new Date("2026-10-31T19:30:00+03:00")), "31.10 в 15:49");
   assert.strictEqual(A.staleSince({ checked_at: "2026-10-31T21:47+03:00" }, new Date("2026-11-01T07:30:00+03:00")), "");  // ночь — проверок нет
+});
+
+test("замена у одной языковой подгруппы не стирает пару другой", () => {
+  const sch = { days: { "2": [{ lessons: [1, 2], subject: "Иностранный язык (английский) / Иностранный язык (немецкий)", teacher: "Баякчан Л.А. / Хаменева И.И.", room: "2-15 / 1-14" }] } };
+  const z = { changes: [{ lessons: [1, 2], time: null, subject: "Иностранный язык (английский)", room: "2-12", uncertain: false }] };
+  const ag = A.build("2026-10-27", sch, bells, z);
+  assert.strictEqual(ag.items[0].subject, "Иностранный язык (английский) / Иностранный язык (немецкий)");
+  assert.strictEqual(ag.items[0].room, "2-12 / 1-14");
+  const de = A.forLanguage(ag, "немецкий").items[0], en = A.forLanguage(ag, "английский").items[0];
+  assert.deepStrictEqual([de.subject, de.teacher, de.room], ["Иностранный язык (немецкий)", "Хаменева И.И.", "1-14"]);
+  assert.deepStrictEqual([en.subject, en.room], ["Иностранный язык (английский)", "2-12"]);
+});
+
+test("договор с ботом домашки: нужные ему функции на месте и того же вида", () => {
+  // бот (dz-bot/bot.gs) берёт agenda.js прямо с сайта; поменяли это — поднять BOT_API и поправить бота
+  assert.strictEqual(A.BOT_API, 1);
+  assert.deepStrictEqual(["zamenaForGroup", "groupDay", "shortText", "staleSince"].map((f) => typeof A[f]), ["function", "function", "function", "function"]);
+  assert.deepStrictEqual([A.zamenaForGroup.length, A.groupDay.length, A.shortText.length, A.staleSince.length], [2, 6, 2, 2]);
 });

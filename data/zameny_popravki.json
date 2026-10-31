@@ -1,0 +1,432 @@
+{
+ "_": "Ручные поправки распознанных замен (сверено с картинкой человеком). Накладываются поверх распознавания, пока картинки распоряжения те же (sha1). Перезалили картинку — поправка не применяется, ежечасная проверка открывает задачу.",
+ "days": {
+  "2026-10-31": {
+   "images": [
+    "82f2f82d9a53e827a55ac2f68df4f5f04d107bc2"
+   ],
+   "note": "2026-10-31 12:20 — распознавание перепутало строки (11-П, 11-Л, 21-П), сверено с картинкой вручную",
+   "title": "Суббота, 2-я неделя",
+   "all_changes": {
+    "11-П": [
+     {
+      "lessons": [
+       1,
+       2
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "11-Д": [
+     {
+      "lessons": [
+       5,
+       6
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "11-Л": [
+     {
+      "lessons": [
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "Биология",
+      "room": "2-7",
+      "uncertain": false
+     }
+    ],
+    "21-П": [
+     {
+      "lessons": [
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "21-С": [
+     {
+      "lessons": [
+       3,
+       4,
+       5,
+       6
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "41-А": [
+     {
+      "lessons": [
+       1,
+       2
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "41-С": [
+     {
+      "lessons": [
+       1,
+       2,
+       3,
+       4
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       5,
+       6,
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "МДК.03.01 Технологии программирования, инсталляции и ввода в действие транспорт. радиоэлектрон. оборуд. (по видам тр.-та)",
+      "room": "1-30",
+      "uncertain": false
+     }
+    ]
+   }
+  },
+  "2026-11-02": {
+   "images": [
+    "3a224e6dffc92443881dd2cb31d5b2383cc01691"
+   ],
+   "note": "2026-10-31 12:40 — распознавание перепутало много строк (группы, уроки 7-8, кабинеты), сверено с картинкой вручную",
+   "title": "Понедельник. 1-я неделя",
+   "all_changes": {
+    "11-П": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       5,
+       6
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "11-Д": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "Физика",
+      "room": "1-30",
+      "uncertain": false
+     }
+    ],
+    "11-А": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-25",
+      "uncertain": false
+     }
+    ],
+    "11-С": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "Акт. зал",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "Математика",
+      "room": "2-5",
+      "uncertain": false
+     }
+    ],
+    "11-В": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-9",
+      "uncertain": false
+     }
+    ],
+    "11-Л": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-3",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "Биология",
+      "room": "2-7",
+      "uncertain": false
+     }
+    ],
+    "21-П": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "Акт. зал",
+      "uncertain": false
+     }
+    ],
+    "21-Д": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-28",
+      "uncertain": false
+     }
+    ],
+    "21-А": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-10",
+      "uncertain": false
+     }
+    ],
+    "21-С": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-14",
+      "uncertain": false
+     }
+    ],
+    "21-Л": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-32",
+      "uncertain": false
+     }
+    ],
+    "31-П": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "2-7",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       1,
+       2
+      ],
+      "time": null,
+      "subject": "Техническая эксплуатация железных дорог и безопасность движения",
+      "room": "1-9",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       5,
+       6
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "31-Д": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-31",
+      "uncertain": false
+     }
+    ],
+    "31-А": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       1,
+       2
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "МДК.01.02 Теоретические основы построения и эксплуатации перегонных систем железнодорожной автоматики",
+      "room": "1-10",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       5,
+       6
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "31-С": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Разговоры о важном",
+      "room": "1-24",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "МДК.02.01 Монтаж и техническая эксплуатация линий связи",
+      "room": "1-32",
+      "uncertain": false
+     }
+    ],
+    "41-П": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       5,
+       6,
+       7,
+       8
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     }
+    ],
+    "41-С": [
+     {
+      "lessons": [
+       0
+      ],
+      "time": "08:30",
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+     },
+     {
+      "lessons": [
+       9,
+       10
+      ],
+      "time": null,
+      "subject": "Основы философии",
+      "room": "2-10",
+      "uncertain": false
+     }
+    ]
+   }
+  }
+ }
+}

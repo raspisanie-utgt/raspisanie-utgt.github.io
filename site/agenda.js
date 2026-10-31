@@ -62,6 +62,18 @@
     return ((((weeks % 2) + 2) % 2) === 0) ? a.week : 3 - a.week;
   }
 
+  // Номер части составной пары («английский / немецкий»), которую заменяет строка распоряжения, или -1.
+  // Только для пар из нескольких частей: язык замены совпал с языком одной из частей или совпал сам предмет.
+  function part(oldSubject, subject) {
+    var parts = String(oldSubject).split(" / ");
+    if (parts.length < 2) return -1;
+    var l = langOf(subject);
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i] === subject || (l && langOf(parts[i]) === l)) return i;
+    }
+    return -1;
+  }
+
   // Возвращает { items: [...], cancelled: [...], changed: bool, week: 1|2 }
   function build(date, schedule, bells, zamena) {
     var wd = isoWeekday(date);
@@ -98,6 +110,17 @@
         } else if (c.subject === CANCEL) {
           if (old) cancelled.push({ n: n, subject: old.subject, teacher: old.teacher, room: old.room });
           delete byLesson[n];
+        } else if (old && part(old.subject, c.subject) >= 0) {
+          // пара у двух языковых подгрупп («английский / немецкий»), замена — у одной: меняем только её часть,
+          // вторая подгруппа остаётся со своей парой, преподавателем и кабинетом
+          var k = part(old.subject, c.subject), sp = old.subject.split(" / "), tp = String(old.teacher || "").split(" / "),
+            rp = String(old.room || "").split(" / ");
+          var same1 = sp[k] === c.subject;
+          sp[k] = c.subject;
+          if (!same1) tp[k] = "";
+          if (c.room) rp[k] = c.room;
+          byLesson[n] = Object.assign({}, old, { subject: sp.join(" / "), teacher: tp.join(" / "), room: rp.join(" / "),
+            block: "z" + i, changed: !(same1 && (!c.room || c.room === String(old.room).split(" / ")[k])), uncertain: c.uncertain });
         } else {
           var same = old && old.subject === c.subject;
           byLesson[n] = {
@@ -256,7 +279,9 @@
     return st.checked_at.slice(8, 10) + "." + st.checked_at.slice(5, 7) + " в " + st.checked_at.slice(11, 16);
   }
 
-  var api = { langOf: langOf, forLanguage: forLanguage, build: build, zamenaForGroup: zamenaForGroup, groupDay: groupDay,
+  // BOT_API — версия того, чем пользуется бот домашки (dz-bot/bot.gs): zamenaForGroup, groupDay, shortText, staleSince.
+  // Поменяли их вид — поднять версию и поправить бота (тест «договор с ботом» в tests/agenda.test.js напомнит).
+  var api = { BOT_API: 1, langOf: langOf, forLanguage: forLanguage, build: build, zamenaForGroup: zamenaForGroup, groupDay: groupDay,
     shortText: shortText, staleSince: staleSince, weekNumber: weekNumber, markNow: markNow, moscowNow: moscowNow, isoWeekday: isoWeekday,
     addDays: addDays, humanDate: humanDate, lessonTime: lessonTime, CANCEL: CANCEL };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

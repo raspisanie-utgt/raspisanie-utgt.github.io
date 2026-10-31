@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+FIXD = Path(__file__).parent / "fixtures" / "data"  # замороженный снимок данных, а не живые data/
 FIX = Path(__file__).parent / "fixtures"
 sys.path.insert(0, str(ROOT / "tools"))
 import extract_calendar as EC  # noqa: E402
@@ -34,7 +35,7 @@ def test_all_19_groups(cal):
 
 def test_11A_matches_site_calendar(cal):
     """data/calendar.json, по которому работает сайт, совпадает с извлечённым из PDF."""
-    site = json.loads((ROOT / "data" / "calendar.json").read_text(encoding="utf-8"))
+    site = json.loads((FIXD / "calendar.json").read_text(encoding="utf-8"))
     assert site["holidays"] == cal["holidays"]
     assert site["groups"]["11-А"] == cal["groups"]["11-А"]
     s = [p for p in cal["groups"]["11-А"]["periods"] if p["type"] == "sessiya"][0]

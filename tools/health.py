@@ -99,7 +99,12 @@ def main():
                                 f"Логи: {run}", os.environ.get("HEALTH_ASSIGNEE"))
             print(f"открыта задача #{n}")
         return 0
-    results = {k: getattr(args, k) != "failure" for k in CHECKS}
+    outcome = {k: getattr(args, k) for k in CHECKS}
+    # проверка не выполнялась (упали тесты, отменили запуск) — это не «снова работает»: счётчик не трогаем
+    if outcome["setup"] != "failure" and outcome["scrape"] not in ("success", "failure"):
+        print("проверка замен не выполнялась — состояние не меняю")
+        return 0
+    results = {k: v != "failure" for k, v in outcome.items() if v in ("success", "failure")}
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     new, action = update(state, results, now())
     print(f"неудач подряд: {new['failures']}" + (f" ({', '.join(CHECKS[k] for k in new['failing'])})" if new["failing"] else ""))
@@ -117,7 +122,7 @@ def main():
         else:
             repo.close_issues(f"Проверка снова проходит ({new['last_check']} МСК).")
             print("задача о сбое закрыта")
-    # файл меняется только при смене состояния — без лишних коммитов каждые 2 часа
+    # файл меняется только при смене состояния — без лишних коммитов каждый час
     keep = {k: v for k, v in new.items() if k != "last_check"}
     old = {k: v for k, v in state.items() if k != "last_check"}
     if keep != old:

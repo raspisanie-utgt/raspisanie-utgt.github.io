@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+FIXD = Path(__file__).parent / "fixtures" / "data"  # замороженный снимок данных, а не живые data/
 sys.path.insert(0, str(ROOT / "tools"))
 import teachers as T  # noqa: E402
 
@@ -27,8 +28,8 @@ def test_match_short_names():
 
 
 def test_every_11A_teacher_has_full_name():
-    by_short = json.loads((ROOT / "data" / "teachers.json").read_text(encoding="utf-8"))["by_short"]
-    sched = json.loads((ROOT / "data" / "groups" / "11a.json").read_text(encoding="utf-8"))
+    by_short = json.loads((FIXD / "teachers.json").read_text(encoding="utf-8"))["by_short"]
+    sched = json.loads((FIXD / "groups" / "11a.json").read_text(encoding="utf-8"))
     for day in sched["days"].values():
         for e in day:
             assert not e["teacher"] or e["teacher"] in by_short, e["teacher"]

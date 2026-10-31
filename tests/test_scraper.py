@@ -225,7 +225,7 @@ def test_parse_page_merges_same_date_and_skips_bad_date():
 
 
 def test_one_broken_day_does_not_stop_others(monkeypatch, capsys):
-    """Ошибка в одном дне (битая картинка) — остальные дни разбираются, индекс пишется всегда."""
+    """Ошибка в одном дне (битая картинка) — остальные дни разбираются, индекс пишется всегда, а сбой виден."""
     html = """<div itemprop="articleBody"><p>на 3 ноября 2026 года очное</p><img src="/x/1.png">
       <p>на 4 ноября 2026 года очное</p><img src="/x/2.png"></div>"""
     done, index = [], []
@@ -239,7 +239,7 @@ def test_one_broken_day_does_not_stop_others(monkeypatch, capsys):
     p.write_text(html, encoding="utf-8")
     try:
         monkeypatch.setattr(sys, "argv", ["scraper.py", "--html", str(p)])
-        assert scraper.main() == 0
+        assert scraper.main() == 1  # сбой виден (health считает), но второй день всё равно разобран
     finally:
         p.unlink()
     assert done == ["2026-11-04"] and index == [1]
@@ -293,7 +293,7 @@ def test_week_numbering_follows_college(tmp_path):
     day("2026-11-05", 2), day("2026-11-06", 2), day("2026-11-09", 1)
     assert scraper.fix_week_anchor(z, g, log=quiet)
     assert json.loads((g / "11a.json").read_text(encoding="utf-8"))["week_anchor"] == {"date": "2026-11-09", "week": 1}
-    assert (tmp_path / "week_anchor_changed.txt").exists()
+    assert "нумерация недель" in (tmp_path / "notices.txt").read_text(encoding="utf-8")
     assert json.loads((z / "2026-11-09.json").read_text(encoding="utf-8"))["week_doubt"]  # пометку не снимаем
 
 
@@ -306,3 +306,25 @@ def test_date_without_year_near_new_year(monkeypatch):
     monkeypatch.setattr(scraper.dt, "datetime", D)
     blocks = scraper.parse_page('<div itemprop="articleBody"><p>на 2 января, очное отделение</p><img src="/i/a.png"></div>')
     assert blocks[0]["date"] == "2027-01-02"
+
+
+def test_manual_corrections_survive_and_expire(tmp_path):
+    """Ручная поправка замен накладывается поверх распознавания, пока картинка та же; перезалили — заметка человеку."""
+    pop = {"days": {"2026-10-31": {"images": ["aaa"], "note": "сверено", "title": "Суббота, 2-я неделя",
+                                    "all_changes": {"21-П": [{"lessons": [7, 8], "time": None, "subject": "Отменить", "room": "", "uncertain": False}]}}}}
+    meta = {"date": "2026-10-31", "images": [{"sha1": "aaa"}], "title": "", "all_changes": {"21-Д": []}, "ocr_uncertain": True}
+    scraper.apply_manual(meta, pop, tmp_path / "n.txt")
+    assert list(meta["all_changes"]) == ["21-П"] and not meta["ocr_uncertain"] and meta["checked_by_hand"] == "сверено"
+    meta2 = {"date": "2026-10-31", "images": [{"sha1": "bbb"}], "title": "", "all_changes": {"21-Д": []}}
+    scraper.apply_manual(meta2, pop, tmp_path / "n.txt")
+    assert list(meta2["all_changes"]) == ["21-Д"] and meta2["manual_outdated"]
+    assert "перезалила" in (tmp_path / "n.txt").read_text(encoding="utf-8")
+
+
+def test_section_words():
+    """«Срочно», «досрочно» — не очное отделение; «очное», «заочного» — да."""
+    html = """<div itemprop="articleBody"><p>на 3 ноября 2026 года заочное отделение</p><img src="/i/z1.png">
+      <p>Срочно ознакомьтесь, досрочно</p><img src="/i/z2.png">
+      <p>на 3 ноября 2026 года очное отделение</p><img src="/i/o.png"></div>"""
+    got = {b["section"]: [i.rsplit("/", 1)[1] for i in b["images"]] for b in scraper.parse_page(html)}
+    assert got == {"zaochnoe": ["z1.png", "z2.png"], "ochnoe": ["o.png"]}

@@ -98,7 +98,7 @@ jobs:
       - name: Сохранить новые замены и новости в репозиторий
         if: always() && github.ref == 'refs/heads/main'
         run: |
-          git add data/zameny data/archive data/news.json data/teachers.json data/health.json data/sources.json data/groups $(ls data/week_anchor_changed.txt 2>/dev/null)
+          git add data/zameny data/archive data/news.json data/teachers.json data/health.json data/sources.json data/groups $(ls data/notices.txt 2>/dev/null)
           if git diff --cached --quiet; then
             echo "Новых замен и новостей нет"
           else

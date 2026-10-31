@@ -5,7 +5,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const C = require("../site/calendar.js");
 
-const cal = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "data/calendar.json"), "utf8"));
+const cal = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/data/calendar.json"), "utf8"));
 const G = "11-А";
 const texts = (d) => C.countdown(d, cal, G).map((l) => l.text);
 
@@ -71,7 +71,7 @@ test("другая группа без данных — пусто, без ош�
 });
 
 test("учебная часть: открыто, обед, закрыто, праздник", () => {
-  const office = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "data/info.json"), "utf8")).office;
+  const office = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/data/info.json"), "utf8")).office;
   const st = (d, hhmm) => C.officeStatus(d, +hhmm.slice(0, 2) * 60 + +hhmm.slice(3), office, cal).text;
   assert.strictEqual(st("2026-10-27", "10:00"), "Открыто до 16:30");
   assert.strictEqual(st("2026-10-27", "11:45"), "Обед до 12:00");
@@ -90,7 +90,7 @@ test("текущий период графика: сессия 31-Д 25.12", () 
 });
 
 test("за пределами учебного графика — государственные праздники всё равно знаем", () => {
-  const cal = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "../data/calendar.json"), "utf8"));
+  const cal = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "fixtures/data/calendar.json"), "utf8"));
   assert.strictEqual(C.dayOff("2027-11-04", cal, "11-А").reason, "День народного единства");
   assert.strictEqual(C.dayOff("2028-01-03", cal, "11-А").kind, "holiday");
   assert.strictEqual(C.dayOff("2027-11-05", cal, "11-А"), null);

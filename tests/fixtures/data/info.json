@@ -1,0 +1,105 @@
+{
+ "source": "https://utgt-pgups.ru/obshchaya-informatsiya.html",
+ "office": {
+  "name": "Учебная часть (очное и заочное отделения)",
+  "room": "1-13",
+  "phone": "8 (8216) 75-27-99",
+  "tel": "+78216752799",
+  "hours": {
+   "1": [
+    "08:30",
+    "16:30"
+   ],
+   "2": [
+    "08:30",
+    "16:30"
+   ],
+   "3": [
+    "08:30",
+    "16:30"
+   ],
+   "4": [
+    "08:30",
+    "16:30"
+   ],
+   "5": [
+    "08:30",
+    "16:30"
+   ],
+   "6": [
+    "08:30",
+    "15:00"
+   ]
+  },
+  "lunch": [
+   "11:30",
+   "12:00"
+  ]
+ },
+ "links": [
+  {
+   "title": "Дистанционное обучение (СДО)",
+   "url": "https://sdo.utgt-pgups.ru/"
+  },
+  {
+   "title": "ВКонтакте техникума",
+   "url": "https://vk.ru/club214137"
+  }
+ ],
+ "by_course": {
+  "1": [
+   {
+    "title": "Индивидуальный проект: требования к оформлению",
+    "url": "https://utgt-pgups.ru/attachments/article/60/Metodicheskie_ukazaniya_i_trebovaniya_k_razrabotke_i_oformleniyu_individ%20proekt.pdf"
+   }
+  ],
+  "2": [
+   {
+    "title": "Курсовые работы: требования к оформлению",
+    "url": "https://utgt-pgups.ru/attachments/article/60/Metodicheskie_ukazaniya_i_trebovaniya_k_razrabotke_i_oformleniyu_kursovyh_rabot_2017.pdf"
+   }
+  ],
+  "3": [
+   {
+    "title": "Курсовые работы: требования к оформлению",
+    "url": "https://utgt-pgups.ru/attachments/article/60/Metodicheskie_ukazaniya_i_trebovaniya_k_razrabotke_i_oformleniyu_kursovyh_rabot_2017.pdf"
+   }
+  ],
+  "4": [
+   {
+    "title": "Дипломный проект: требования к оформлению",
+    "url": "https://utgt-pgups.ru/attachments/article/376/1%20%D0%9C%D0%A3%20%D0%BF%D0%BE%20%D0%94%D0%9F.pdf"
+   },
+   {
+    "title": "Всё о ГИА на сайте техникума",
+    "url": "https://utgt-pgups.ru/gia.html"
+   }
+  ]
+ },
+ "gia_by_specialty": {
+  "08.02.10": "https://utgt-pgups.ru/attachments/article/376/08.02.10_Programma%20GIA_2025-2026%20(2).pdf",
+  "11.02.06": "https://utgt-pgups.ru/attachments/article/376/11.02.06_Programma%20GIA_2025-2026%20(2).pdf",
+  "23.02.01": "https://utgt-pgups.ru/attachments/article/376/23.02.01_Programma%20GIA_2025-2026.pdf",
+  "27.02.03": "https://utgt-pgups.ru/attachments/article/376/27.02.03_Programma%20GIA_%D0%9A%D0%9E%D0%94_2025-2026.pdf"
+ },
+ "gia_year": "2025–2026",
+ "curators": {
+  "11-П": "Мигальникова О.А.",
+  "11-Д": "Топчий О.В.",
+  "11-А": "Канева О.П.",
+  "11-С": "Хаменева И.И.",
+  "11-В": "Редин С.В.",
+  "11-Л": "Безручко С.А.",
+  "21-П": "Хаменева И.И.",
+  "21-А": "Добряков Ю.В.",
+  "31-П": "Певцова Л.А.",
+  "31-Д": "Линок О.М.",
+  "31-А": "Добряков Ю.В.",
+  "31-С": "Черных С.С.",
+  "41-П": "Мигальникова О.А.",
+  "41-Д": "Баякчан Л.А.",
+  "41-А": "Канева О.П.",
+  "41-С": "Марчак А.В."
+ },
+ "curators_note": "Кураторы — по сведениям куратора 11-А (28.10.2026). Полное имя показывается, только если оно есть в списке педсостава на сайте техникума; 21-Д, 21-С, 21-Л — пока неизвестны"
+}

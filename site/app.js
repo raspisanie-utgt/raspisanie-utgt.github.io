@@ -831,7 +831,8 @@
     document.title = "Расписание УТЖТ · " + g;
     typeInto($("groupName"), g);
     setTitle(A.humanDate(date));
-    $("week").textContent = ag.weekday === 7 ? "" : ag.week + "-я неделя";
+    // в воскресенье и в каникулы / на практике номер недели ни к чему
+    $("week").textContent = ag.weekday === 7 || (ag.off && ag.off.kind === "break") ? "" : ag.week + "-я неделя";
     // шифр и название специальности — не в шапке, а в «Полезном» («Расшифровка групп»)
     $("specialty").hidden = true;
 
@@ -1174,7 +1175,7 @@
       var src = "data/zameny/" + esc(i.file);
       // на сайте показываем WebP (в 2 раза легче, его делает build_site.py), PNG — запасной и для «открыть целиком»
       var img = function (style) {
-        return '<picture><source type="image/webp" srcset="' + src.replace(/\.png$/, ".webp") + '"><img loading="lazy" decoding="async" src="' +
+        return '<picture><source type="image/webp" srcset="' + src.replace(/\.(png|jpe?g)$/, ".webp") + '"><img loading="lazy" decoding="async" src="' +
           src + '" alt="' + alt + '"' + (style ? ' style="' + style + '"' : "") + "></picture>";
       };
       var t = i.table;

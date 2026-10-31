@@ -11,20 +11,29 @@ var CORE = ["data/groups/index.json", "data/bells.json", "data/zameny/index.json
 function keyOf(u) { var x = new URL(u, location.href); return x.searchParams.has("v") ? x.href : x.origin + x.pathname; }
 
 function precache(c) {
-  var put = function (u) {
+  // must — без этого файла сайт без интернета не откроется: не скачался — установка новой версии не засчитывается,
+  // и остаются старый работник и старый кэш (иначе обрыв связи посреди обновления оставил бы телефон без офлайна)
+  var put = function (u, must) {
     var k = keyOf(u);
     // стили и скрипты с ?v=… не меняются: если такой уже лежит в прошлом кэше — берём оттуда, не качаем заново
     var old = /[?&]v=/.test(u) ? caches.match(k) : Promise.resolve(null);
-    return old.then(function (hit) {
+    var p = old.then(function (hit) {
       return hit || fetch(u, { cache: "no-cache" }).then(function (r) { return r.ok ? r : null; });
-    }).then(function (r) { if (r) return c.put(k, r); }).catch(function () {});
+    }).then(function (r) {
+      if (!r) throw new Error("не скачался " + u);
+      return c.put(k, r);
+    });
+    return must ? p : p.catch(function () {});
   };
   return fetch("./", { cache: "no-cache" }).then(function (r) {
+    if (!r.ok) throw new Error("не скачалась страница");
     return r.clone().text().then(function (html) {
       var assets = (html.match(/(?:src|href)="([\w.-]+\.(?:js|css)\?v=[0-9a-f]+)"/g) || [])
         .map(function (m) { return m.replace(/^(?:src|href)="|"$/g, ""); });
       return c.put(new URL("./", location.href).href, r).then(function () {
-        return Promise.all(assets.concat(CORE).map(put));
+        return Promise.all(assets.map(function (u) { return put(u, true); }));
+      }).then(function () {
+        return Promise.all(CORE.map(function (u) { return put(u, false); }));
       });
     });
   }).then(function () {
@@ -35,12 +44,14 @@ function precache(c) {
       fetch("data/zameny/index.json").then(function (r) { return r.json(); }).then(function (ix) {
         return Promise.all(ix.days.slice(-4).map(function (d) { return put("data/zameny/" + d + ".json"); }));
       })
-    ]);
-  }).catch(function () {});
+    ]).catch(function () {});
+  });
 }
 
 self.addEventListener("install", function (e) {
-  e.waitUntil(caches.open(CACHE).then(precache).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(CACHE).then(precache).then(function () { return self.skipWaiting(); }, function (err) {
+    return caches.delete(CACHE).then(function () { throw err; });  // недокачанный кэш не оставляем
+  }));
 });
 
 self.addEventListener("activate", function (e) {
@@ -49,11 +60,21 @@ self.addEventListener("activate", function (e) {
   }).then(function () { return self.clients.claim(); }));
 });
 
+// Картинки распоряжений и истории кэшируются по ходу просмотра — держим не больше 60 последних
+function trimImages(c) {
+  return c.keys().then(function (keys) {
+    var imgs = keys.filter(function (r) { return /\.(png|webp|jpe?g)$/i.test(new URL(r.url).pathname); });
+    return Promise.all(imgs.slice(0, Math.max(0, imgs.length - 60)).map(function (r) { return c.delete(r); }));
+  });
+}
+
 function fromNetwork(req, key) {
   return fetch(req).then(function (res) {
     if (res && res.ok) {
       var copy = res.clone();
-      caches.open(CACHE).then(function (c) { c.put(key || req.url, copy); });
+      caches.open(CACHE).then(function (c) {
+        return c.put(key || req.url, copy).then(function () { if (/\.(png|webp|jpe?g)$/i.test(new URL(req.url).pathname)) return trimImages(c); });
+      });
     }
     return res;
   });
