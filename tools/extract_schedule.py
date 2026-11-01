@@ -4,6 +4,8 @@
     python tools/extract_schedule.py rasp.pdf            # -> data/groups/*.json
     python tools/extract_schedule.py rasp.pdf --print 21-С
 
+Новый семестр обычно разбирает сам tools/semestr.py (вызывает extract_all) — этот запуск нужен для ручной работы.
+
 Формат файла группы — как data/groups/11a.json. Ячейка, разделённая чертой
 внутри пары, = чередование недель: верх — 1-я неделя, низ — 2-я.
 """
@@ -17,8 +19,12 @@ import pdfplumber
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "groups"
+# Ручной запуск (main) берёт эти значения; tools/semestr.py передаёт свои — для нового семестра
 SOURCE = "https://utgt-pgups.ru/images/Raspisanie%20ucebnyh%20zanatij%201%20semestr%202026-2027.pdf"
+VALID_FROM = "2026-09-01"
 VALID_TO = "2027-01-11"  # расписание 1-го семестра — до конца зимних каникул
+WEEK_ANCHOR = {"date": "2026-10-19", "week": 1}
+TITLE_RE = re.compile(r"НА\s+(\d)\s*СЕМЕСТР\s+(20\d\d)\s*[/-]\s*(20\d\d)", re.I)
 GROUP_RE = re.compile(r"^[1-4]1-[А-ЯЁ]$")
 NAME_RE = re.compile(r"^[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s+[А-ЯЁ]\.\s?[А-ЯЁ]\.?$")
 TAIL_NAME_RE = re.compile(r"\s([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s[А-ЯЁ]\.\s?[А-ЯЁ]\.?)$")
@@ -275,8 +281,9 @@ def subject_fixer(all_days):
     return fix_days
 
 
-def apply_popravki(name, days, popravki):
-    """Ручные поправки (data/popravki.json): переименования предметов и правки отдельных пар."""
+def apply_popravki(name, days, popravki, source=None):
+    """Ручные поправки (data/popravki.json): переименования предметов и правки отдельных пар.
+    Правка пары относится к своему PDF (поле source): в расписании нового семестра на этом месте другая пара."""
     done = []
     names = popravki.get("subjects", {})
     for entries in days.values():
@@ -286,7 +293,7 @@ def apply_popravki(name, days, popravki):
                 done.append(f"{e['subject']} -> {new}")
                 e["subject"] = new
     for p in popravki.get("entries", []):
-        if p["group"] != name:
+        if p["group"] != name or (source and p.get("source", source) != source):
             continue
         for e in days.get(p["day"], []):
             if e["lessons"] == p["lessons"]:
@@ -302,33 +309,39 @@ def group_slug(name):
     return name[:2] + LATIN.get(name[-1], name[-1].lower())
 
 
-def build_group_file(name, days, warnings):
+def pdf_info(pdf_path):
+    """Что за расписание: {"semester": 1, "year": "2026/2027", "title": ...} по заголовку PDF; не нашли — None."""
+    text = pdfplumber.open(pdf_path).pages[0].extract_text() or ""
+    m = TITLE_RE.search(" ".join(text.split()))
+    if not m or int(m.group(3)) != int(m.group(2)) + 1:
+        return None
+    return {"semester": int(m.group(1)), "year": f"{m.group(2)}/{m.group(3)}",
+            "title": f"Расписание учебных занятий на {m.group(1)} семестр {m.group(2)}/{m.group(3)} учебного года (очное отделение)"}
+
+
+def build_group_file(name, days, warnings, source=SOURCE, title=None, anchor=None, verified=None):
     return {
         "group": name,
-        "source": SOURCE,
-        "title": "Расписание учебных занятий на 1 семестр 2026/2027 учебного года (очное отделение)",
+        "source": source,
+        "title": title or "Расписание учебных занятий на 1 семестр 2026/2027 учебного года (очное отделение)",
         "note": "Извлечено автоматически tools/extract_schedule.py. week: 1/2 — пара только в эту неделю.",
-        "week_anchor": {"date": "2026-10-19", "week": 1},
-        "verified": name in VERIFIED,
+        "week_anchor": anchor or WEEK_ANCHOR,
+        "verified": name in (VERIFIED if verified is None else verified),
         "warnings": warnings,
         "days": days,
     }
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("pdf")
-    ap.add_argument("--print", dest="show")
-    args = ap.parse_args()
-    sheet = Sheet(pdfplumber.open(args.pdf).pages[0])
-    if args.show:
-        days, warnings = sheet.group(args.show)
-        print(json.dumps({"days": days, "warnings": warnings}, ensure_ascii=False, indent=1))
-        return 0
-    OUT.mkdir(parents=True, exist_ok=True)
+def extract_all(pdf_path, out_dir, source, valid_from, valid_to, title=None, anchor=None, verified=None, info=None, log=print):
+    """Разобрать PDF целиком в out_dir: файлы групп + index.json. Возвращает index.
+    verified — какие группы человек сверил (для нового PDF — никакие: сайт честно пишет «не сверено»)."""
+    sheet = Sheet(pdfplumber.open(pdf_path).pages[0])
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    verified = VERIFIED if verified is None else set(verified)
     teachers = ROOT / "data" / "teachers.json"
     fix_days = teacher_fixer(json.loads(teachers.read_text(encoding="utf-8"))["teachers"] if teachers.exists() else [])
-    index = []
+    groups = []
     parsed = {name: sheet.group(name) for name in sheet.groups}
     fix_subjects = subject_fixer([days for days, _ in parsed.values()])
     pop_path = ROOT / "data" / "popravki.json"
@@ -336,22 +349,36 @@ def main():
     for name in sheet.groups:
         days, warnings = parsed[name]
         for f in fix_days(days):
-            print(f"{name}: исправлены инициалы {f}")
+            log(f"{name}: исправлены инициалы {f}")
         for f in fix_subjects(days):
-            print(f"{name}: исправлен предмет {f}")
-        for f in apply_popravki(name, days, popravki):
-            print(f"{name}: ручная поправка {f}")
+            log(f"{name}: исправлен предмет {f}")
+        for f in apply_popravki(name, days, popravki, source):
+            log(f"{name}: ручная поправка {f}")
         slug = group_slug(name)
-        data = build_group_file(name, days, warnings)
-        (OUT / f"{slug}.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        data = build_group_file(name, days, warnings, source, title, anchor, verified)
+        (out_dir / f"{slug}.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
         n = sum(len(v) for v in days.values())
-        index.append({"group": name, "file": f"{slug}.json", "course": int(name[0]), "verified": name in VERIFIED,
-                      "pairs": n, "warnings": len(warnings)})
-        print(f"{name}: {n} записей, предупреждений: {len(warnings)}")
-    # до какого дня действует расписание (конец зимних каникул) — после сайт пишет «нового расписания ещё нет»,
-    # а не показывает старое; при новом семестре поменять VALID_TO вместе с SOURCE
-    (OUT / "index.json").write_text(json.dumps({"source": SOURCE, "valid_to": VALID_TO, "groups": index}, ensure_ascii=False, indent=1),
-                                    encoding="utf-8")
+        groups.append({"group": name, "file": f"{slug}.json", "course": int(name[0]), "verified": name in verified,
+                       "pairs": n, "warnings": len(warnings)})
+        log(f"{name}: {n} записей, предупреждений: {len(warnings)}")
+    # с какого и до какого дня действует расписание: после valid_to сайт пишет «нового расписания ещё нет»,
+    # а не показывает старое
+    index = {"source": source, **({"semester": info["semester"], "year": info["year"]} if info else {}),
+             "valid_from": valid_from, "valid_to": valid_to, "groups": groups}
+    (out_dir / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
+    return index
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("pdf")
+    ap.add_argument("--print", dest="show")
+    args = ap.parse_args()
+    if args.show:
+        days, warnings = Sheet(pdfplumber.open(args.pdf).pages[0]).group(args.show)
+        print(json.dumps({"days": days, "warnings": warnings}, ensure_ascii=False, indent=1))
+        return 0
+    extract_all(args.pdf, OUT, SOURCE, VALID_FROM, VALID_TO, info=pdf_info(args.pdf))
     return 0
 
 

@@ -45,15 +45,18 @@
     "01-08": "Новогодние каникулы", "02-23": "День защитника Отечества", "03-08": "Международный женский день",
     "05-01": "Праздник Весны и Труда", "05-09": "День Победы", "06-12": "День России", "11-04": "День народного единства" };
 
-  // Учебный год, который покрывает график: с 1 сентября до последнего дня периодов (обычно 31 августа)
+  // Учебные годы, которые покрывает график: с 1 сентября первого до последнего дня периодов (обычно 31 августа).
+  // Летом к графику этого года добавляется график следующего (tools/semestr.py) — тогда это два года подряд.
   var RANGE = typeof WeakMap === "function" ? new WeakMap() : null;  // посчитанное — без пометок в самом графике
   function covered(date, cal) {
     var r = RANGE && RANGE.get(cal);
     if (!r) {
-      var end = "";
-      Object.keys(cal.groups || {}).forEach(function (g) { periods(cal, g).forEach(function (p) { if (p.to > end) end = p.to; }); });
-      (cal.holidays || []).forEach(function (h) { if (h.date > end) end = h.date; });
-      r = { start: end ? (+end.slice(0, 4) - 1) + "-09-01" : "9999", end: end || "0000" };
+      var end = "", first = "9999";
+      var see = function (a, b) { if (b > end) end = b; if (a < first) first = a; };
+      Object.keys(cal.groups || {}).forEach(function (g) { periods(cal, g).forEach(function (p) { see(p.from, p.to); }); });
+      (cal.holidays || []).forEach(function (h) { see(h.date, h.date); });
+      var y = +first.slice(0, 4) - (first.slice(5) < "09-01" ? 1 : 0);
+      r = { start: end ? Math.min(y, +end.slice(0, 4) - 1) + "-09-01" : "9999", end: end || "0000" };
       if (RANGE) RANGE.set(cal, r);
     }
     return date >= r.start && date <= r.end;

@@ -279,10 +279,23 @@
     return st.checked_at.slice(8, 10) + "." + st.checked_at.slice(5, 7) + " в " + st.checked_at.slice(11, 16);
   }
 
+  // Учебный год даты: 2026 — с 20 августа 2026 по 19 августа 2027 (в конце августа выбирают группу уже на новый год)
+  function studyYear(date) {
+    var y = +date.slice(0, 4), md = date.slice(5);
+    return md >= "08-20" ? y : y - 1;
+  }
+  // Группа через years учебных лет: «11-А» -> «21-А» (первая цифра — курс); после 4 курса — null (выпуск)
+  function promote(group, years) {
+    var m = /^([1-9])(\d-.+)$/.exec(String(group || ""));
+    if (!m || years <= 0) return m ? group : null;
+    var course = +m[1] + years;
+    return course <= 4 ? course + m[2] : null;
+  }
+
   // BOT_API — версия того, чем пользуется бот домашки (dz-bot/bot.gs): zamenaForGroup, groupDay, shortText, staleSince.
   // Поменяли их вид — поднять версию и поправить бота (тест «договор с ботом» в tests/agenda.test.js напомнит).
   var api = { BOT_API: 1, langOf: langOf, forLanguage: forLanguage, build: build, zamenaForGroup: zamenaForGroup, groupDay: groupDay,
-    shortText: shortText, staleSince: staleSince, weekNumber: weekNumber, markNow: markNow, moscowNow: moscowNow, isoWeekday: isoWeekday,
+    shortText: shortText, staleSince: staleSince, studyYear: studyYear, promote: promote, weekNumber: weekNumber, markNow: markNow, moscowNow: moscowNow, isoWeekday: isoWeekday,
     addDays: addDays, humanDate: humanDate, lessonTime: lessonTime, CANCEL: CANCEL };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Agenda = api;

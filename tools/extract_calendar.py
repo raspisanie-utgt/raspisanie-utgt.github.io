@@ -22,8 +22,26 @@ import pdfplumber
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = "https://utgt-pgups.ru/images/Svodnyj%20KUG%20ocnoe%20otdelenie%202026-2027%20ucebnyj%20god.pdf"
-YEAR_START = dt.date(2026, 9, 1)  # вторник — первый день недели №1
-DAYS = ["ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС", "ПН"]
+YEAR_START = dt.date(2026, 9, 1)  # 1 сентября — первый день недели №1 (в 2026 — вторник)
+WEEKDAYS = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
+DAYS = ["ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС", "ПН"]  # строки графика: с дня недели 1 сентября
+YEAR_RE = re.compile(r"НА\s+(20\d\d)\s*[-–/]\s*(20\d\d)\s+УЧЕБН", re.I)
+
+
+def configure(year, source):
+    """Учебный год графика: неделя №1 начинается 1 сентября, строки дней — с его дня недели."""
+    global YEAR_START, DAYS, SOURCE
+    YEAR_START = dt.date(year, 9, 1)
+    k = YEAR_START.weekday()
+    DAYS = WEEKDAYS[k:] + WEEKDAYS[:k]
+    SOURCE = source
+
+
+def pdf_year(pdf_path):
+    """Первый год учебного года по заголовку PDF («НА 2026 - 2027 УЧЕБНЫЙ ГОД» -> 2026) или None."""
+    text = " ".join((pdfplumber.open(pdf_path).pages[0].extract_text() or "").split())
+    m = YEAR_RE.search(text)
+    return int(m.group(1)) if m and int(m.group(2)) == int(m.group(1)) + 1 else None
 GROUP_RE = re.compile(r"^[1-4]1-[А-ЯЁ]$")
 HOLIDAY_NAMES = {(11, 4): "День народного единства", (2, 23): "День защитника Отечества",
                  (3, 8): "Международный женский день", (5, 1): "Праздник Весны и Труда",
@@ -253,7 +271,7 @@ def extract(pdf_path):
                      "periods": [{**p, "from": p["from"].isoformat(), "to": p["to"].isoformat()} for p in ps]}
     return {
         "source": SOURCE,
-        "title": "Сводный календарный учебный график на 2026-2027 учебный год (очная форма обучения)",
+        "title": f"Сводный календарный учебный график на {YEAR_START.year}-{YEAR_START.year + 1} учебный год (очная форма обучения)",
         "note": "Извлечено tools/extract_calendar.py. type: kanikuly / sessiya / sbory / praktika / demo_prep / demo.",
         "holidays": [{"date": d.isoformat(), "name": HOLIDAY_NAMES.get((d.month, d.day), "Праздничный день")}
                      for d in holidays],

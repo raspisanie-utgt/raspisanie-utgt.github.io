@@ -158,3 +158,12 @@ test("договор с ботом домашки: нужные ему функ�
   assert.deepStrictEqual(["zamenaForGroup", "groupDay", "shortText", "staleSince"].map((f) => typeof A[f]), ["function", "function", "function", "function"]);
   assert.deepStrictEqual([A.zamenaForGroup.length, A.groupDay.length, A.shortText.length, A.staleSince.length], [2, 6, 2, 2]);
 });
+
+test("новый учебный год: группа переходит на следующий курс", () => {
+  assert.deepStrictEqual(["2026-09-01", "2027-01-15", "2027-08-19", "2027-08-20", "2027-12-31"].map(A.studyYear), [2026, 2026, 2026, 2027, 2027]);
+  assert.strictEqual(A.promote("11-А", 1), "21-А");
+  assert.strictEqual(A.promote("31-П", 1), "41-П");
+  assert.strictEqual(A.promote("41-С", 1), null);  // выпуск
+  assert.strictEqual(A.promote("11-Д", 2), "31-Д");
+  assert.strictEqual(A.promote("21-Л", 0), "21-Л");
+});

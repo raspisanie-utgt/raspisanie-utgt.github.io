@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   var A = window.Agenda, C = window.Calendar;
-  var STORE_KEY = "utgt-group", WHO_KEY = "utgt-who", TEACHER_KEY = "utgt-teacher", LANG_KEY = "utgt-lang";
+  var STORE_KEY = "utgt-group", WHO_KEY = "utgt-who", TEACHER_KEY = "utgt-teacher", LANG_KEY = "utgt-lang", YEAR_KEY = "utgt-group-year";
   var state = { weekOpen: {}, infoOpen: null, offset: 0, data: null, zamena: {}, group: null, teacher: null, schedules: {}, open: {}, pickWho: "group" };
   var params = new URLSearchParams(location.search);
 
@@ -1595,6 +1595,7 @@
     state.group = name;
     state.teacher = null;
     store(STORE_KEY, name);
+    store(YEAR_KEY, String(A.studyYear(A.moscowNow().date)));
     store(WHO_KEY, "group");
     params.delete("teacher");
     params.set("group", name);
@@ -1849,6 +1850,18 @@
     });
   })();
 
+  // Новый учебный год: запомненная группа переходит на следующий курс («11-А» -> «21-А»), после 4 курса —
+  // выбор группы заново. Год, когда группу выбрали, — рядом с ней (у кого его ещё нет — этот год).
+  (function () {
+    var g = store(STORE_KEY), y = A.studyYear(A.moscowNow().date), was = +store(YEAR_KEY) || y;
+    if (g && was < y) {
+      var up = A.promote(g, y - was);
+      if (up) store(STORE_KEY, up);
+      else { try { localStorage.removeItem(STORE_KEY); } catch (e) {} }
+    }
+    if (g) store(YEAR_KEY, String(y));
+  })();
+
   // Сразу, ещё до загрузки данных: полоса дней, запомненная группа и сегодняшняя дата —
   // а не пустые «Группа / Расписание» (данные на слабом интернете идут несколько секунд)
   (function () {
@@ -1886,6 +1899,7 @@
     if (wanted && groupInfo(wanted)) {
       state.group = wanted;
       store(STORE_KEY, wanted);
+      store(YEAR_KEY, String(A.studyYear(A.moscowNow().date)));
       // пары на сегодня закончились (с учётом замен) — молча открываем «Завтра»
       return Promise.all([scheduleFor(wanted), params.get("date") ? null : zamenaFor(A.moscowNow().date)]).then(function (r) {
         var s = r[0], now = A.moscowNow();

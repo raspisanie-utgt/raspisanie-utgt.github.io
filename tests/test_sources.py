@@ -13,6 +13,7 @@ def test_changes():
     a = state({"size": "1", "etag": "x"}, ["u/raspisanie 1 semestr.pdf"])
     assert sources.changes({}, a) == []  # первая проверка — только запомнить
     assert sources.changes(a, a) == []
-    b = state({"size": "2", "etag": "y"}, ["u/raspisanie 1 semestr.pdf", "u/raspisanie 2 semestr.pdf"])
+    b = state({"size": "2", "etag": "y"}, ["u/raspisanie 1 semestr.pdf", "u/raspisanie 2 semestr.pdf", "u/zvonki 2.pdf"])
     found = sources.changes(a, b)
-    assert len(found) == 2 and "звонки" in found[0] and "2 semestr" in found[1]
+    # новое расписание разбирает tools/semestr.py — о нём здесь задачи нет
+    assert len(found) == 2 and "звонки" in found[0] and "zvonki 2" in found[1]

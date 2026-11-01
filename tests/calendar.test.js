@@ -96,3 +96,13 @@ test("за пределами учебного графика — государ
   assert.strictEqual(C.dayOff("2027-11-05", cal, "11-А"), null);
   assert.strictEqual(C.dayOff("2026-11-05", cal, "11-А"), null);  // внутри графика — только то, что в нём
 });
+
+test("летом к графику добавлен следующий год — оба года по графику", () => {
+  const next = JSON.parse(JSON.stringify(cal).replace(/2027-/g, "2028-").replace(/2026-/g, "2027-"));
+  const both = { holidays: cal.holidays.concat(next.holidays), groups: { [G]: { periods: cal.groups[G].periods.concat(next.groups[G].periods) } } };
+  assert.strictEqual(C.dayOff("2026-12-30", both, G).kind, "break");
+  assert.strictEqual(C.dayOff("2027-12-30", both, G).kind, "break");
+  assert.strictEqual(C.dayOff("2027-01-08", both, G).kind, "break");
+  assert.strictEqual(C.dayOff("2026-11-05", both, G), null);  // внутри графика — только то, что в нём
+  assert.strictEqual(C.dayOff("2027-11-05", both, G), null);
+});

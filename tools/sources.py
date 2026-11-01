@@ -1,6 +1,7 @@
-"""Следит, не поменялись ли источники, из которых сайт собран один раз в семестр: PDF расписания занятий,
-звонков, учебного графика, педсостава, и список PDF на странице «Расписания и графики». Поменялись —
-открывает задачу на GitHub (сам PDF заново не разбирает: это делается вручную — tools/extract_*.py).
+"""Следит, не поменялись ли источники, из которых сайт собран один раз в семестр: PDF звонков и педсостава,
+и список PDF на странице «Расписания и графики». Поменялись — открывает задачу на GitHub. Расписание занятий
+и учебный график разбирает сам tools/semestr.py (он запускается раньше и пишет заметки в data/notices.txt —
+по ним здесь тоже открывается задача).
 
     python tools/sources.py           # проверить; состояние — data/sources.json (меняется только при изменениях)
 
@@ -22,6 +23,9 @@ UA = {"User-Agent": "Mozilla/5.0 (utgt schedule bot; +https://github.com/raspisa
 LABEL = "источник"
 # PDF на странице, за появлением новых версий которых следим (очное отделение: расписание, звонки, график)
 WATCH = re.compile(r"raspisanie.*semestr|zvonk|kug.*ocn", re.I)
+# их разбирает tools/semestr.py — здесь о них задач не открываем (он сам напишет, вышло или нет)
+AUTO = {"расписание занятий", "учебный график"}
+AUTO_RE = re.compile(r"raspisanie.*semestr|kug.*ocn", re.I)
 
 
 def tracked():
@@ -55,11 +59,13 @@ def changes(old, new):
     """Что поменялось между двумя состояниями (по ключам, которые были и раньше)."""
     out = []
     for name, cur in new.get("files", {}).items():
+        if name in AUTO:
+            continue
         prev = old.get("files", {}).get(name)
         if prev and prev["url"] == cur["url"] and prev["fp"] != cur["fp"]:
             out.append(f"**{name}**: файл на сайте техникума изменился ({prev['fp']} → {cur['fp']}) — {cur['url']}")
     if old.get("page_pdfs") is not None:
-        added = sorted(set(new["page_pdfs"]) - set(old["page_pdfs"]))
+        added = sorted(u for u in set(new["page_pdfs"]) - set(old["page_pdfs"]) if not AUTO_RE.search(u))
         out += [f"на странице «Расписания и графики» новый PDF: {u}" for u in added]
     return out
 
@@ -72,8 +78,7 @@ def open_issue(text, title="Изменились исходные PDF на са�
     api = f"https://api.github.com/repos/{repo}"
     requests.post(f"{api}/labels", headers=h, json={"name": LABEL, "color": "0e8a16"}, timeout=30)
     if tail is None:
-        tail = ("Сайт показывает расписание, разобранное из старых файлов. Проверить и при необходимости разобрать заново: "
-                "`tools/extract_schedule.py`, `tools/extract_calendar.py`, звонки — `data/bells.json`.")
+        tail = ("Звонки — поправить `data/bells.json` по новому PDF; педсостав `tools/teachers.py` обновляет сам.")
     data = {"title": title, "labels": [LABEL], "body": text + "\n\n" + tail}
     if os.environ.get("HEALTH_ASSIGNEE"):
         data["assignees"] = [os.environ["HEALTH_ASSIGNEE"]]

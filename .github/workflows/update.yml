@@ -74,7 +74,12 @@ jobs:
         continue-on-error: true
         run: python tools/teachers.py
 
-      - name: Исходные PDF (расписание, звонки, график, педсостав) — поменялись -> задача
+      - name: Новый семестр и учебный год — сам разбирает новые PDF расписания и графика
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        run: python tools/semestr.py
+
+      - name: Исходные PDF (звонки, педсостав) и заметки сайта -> задача
         if: github.ref == 'refs/heads/main'
         continue-on-error: true
         env:
@@ -98,7 +103,9 @@ jobs:
       - name: Сохранить новые замены и новости в репозиторий
         if: always() && github.ref == 'refs/heads/main'
         run: |
-          git add data/zameny data/archive data/news.json data/teachers.json data/health.json data/sources.json data/groups $(ls data/notices.txt 2>/dev/null)
+          # всё, что шаги выше поменяли в data/ (замены, архив, новости, расписание нового семестра, график…),
+          # вместе с удалёнными файлами (старые группы, отложенное расписание после включения)
+          git add -A data
           if git diff --cached --quiet; then
             echo "Новых замен и новостей нет"
           else
