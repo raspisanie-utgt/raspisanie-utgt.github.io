@@ -183,3 +183,42 @@ def test_switch_on():
     # перед 1 сентября — летние каникулы почти у всех: за 3 недели
     assert semestr.switch_on("2027-09-01", cal, D("2027-06-01")) == D("2027-08-11")
     assert semestr.semester_dates({"semester": 1, "year": "2027/2028"}, cal, {}) == ("2027-09-01", "2028-01-11", True)
+
+
+def test_broken_pdf_note_once_and_no_redownload(data, monkeypatch, tmp_path):
+    """Вёрстка PDF другая — заметка человеку один раз; тот же файл больше не качаем каждый час."""
+    real = extract_schedule.pdf_info
+    monkeypatch.setattr(extract_schedule, "pdf_info", lambda p: {**real(p), "semester": 2})
+    monkeypatch.setattr(extract_schedule, "extract_all", lambda *a, **k: (_ for _ in ()).throw(AssertionError("нашлось дней: 1")))
+    site(monkeypatch, [CUR, NEW], {NEW: SCHED_PDF})
+    calls = []
+    real_dl = semestr.download
+    monkeypatch.setattr(semestr, "download", lambda u, f: calls.append(u) or real_dl(u, f))
+    for day in ("2026-12-01", "2026-12-01", "2026-12-02"):
+        semestr.main(data, D(day))
+    text = (data / "notices.txt").read_text(encoding="utf-8")
+    assert text.count("разобрать не вышло") == 1 and "нашлось дней" in text
+    assert calls == [NEW] and not (data / "next").exists()
+
+
+def test_fix_of_current_pdf_while_next_waits(data, monkeypatch):
+    real = extract_schedule.pdf_info
+    monkeypatch.setattr(extract_schedule, "pdf_info", lambda p: {**real(p), "semester": 2})
+    site(monkeypatch, [CUR, NEW], {NEW: SCHED_PDF}, {CUR: {"size": "1"}})
+    semestr.main(data, D("2026-12-01"))
+    assert (data / "next").exists()
+    f = data / "groups" / "11a.json"
+    g = load(f)
+    g["days"]["1"] = g["days"]["1"][:1]
+    f.write_text(json.dumps(g, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(extract_schedule, "pdf_info", real)  # перезалили PDF 1 семестра
+    site(monkeypatch, [CUR, NEW], {CUR: SCHED_PDF, NEW: SCHED_PDF}, {CUR: {"size": "2"}})
+    semestr.main(data, D("2026-12-02"))
+    assert len(load(f)["days"]["1"]) > 1 and load(data / "next" / "index.json")["semester"] == 2
+
+
+def test_switch_on_with_next_year_calendar_merged():
+    cal = load(FIX / "data" / "calendar.json")
+    nxt = json.loads(json.dumps(cal).replace("2027-", "2028-").replace("2026-", "2027-"))
+    merged = semestr.merge_calendars(cal, nxt, 2027)
+    assert semestr.switch_on("2027-09-01", merged, D("2027-06-01")) == D("2027-08-11")

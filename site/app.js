@@ -113,7 +113,12 @@
       getJSON("data/info.json").catch(function () { return null; }),
       getJSON("data/rooms.json").catch(function () { return {}; })
     ]).then(function (r) {
-      state.data = { groups: r[0].groups, validTo: r[0].valid_to, bells: r[1], index: r[2], status: r[3], calendar: r[4], news: r[5],
+      // открытая вкладка живёт неделями: новый семестр, перезалитый PDF, поправленная нумерация недель —
+      // файлы групп берём заново, если поменялся список групп или наступил новый день
+      var sig = JSON.stringify(r[0]) + A.moscowNow().date;
+      if (state.groupsSig && state.groupsSig !== sig) state.schedules = {};
+      state.groupsSig = sig;
+      state.data = { groups: r[0].groups, validTo: r[0].valid_to, year: r[0].year, bells: r[1], index: r[2], status: r[3], calendar: r[4], news: r[5],
         teachers: r[6], info: r[7], rooms: r[8] };
       state.zamena = {};
       state.loadedAt = A.moscowNow().time;
@@ -1595,7 +1600,7 @@
     state.group = name;
     state.teacher = null;
     store(STORE_KEY, name);
-    store(YEAR_KEY, String(A.studyYear(A.moscowNow().date)));
+    store(YEAR_KEY, String(studyYearNow()));
     store(WHO_KEY, "group");
     params.delete("teacher");
     params.set("group", name);
@@ -1852,15 +1857,22 @@
 
   // Новый учебный год: запомненная группа переходит на следующий курс («11-А» -> «21-А»), после 4 курса —
   // выбор группы заново. Год, когда группу выбрали, — рядом с ней (у кого его ещё нет — этот год).
-  (function () {
-    var g = store(STORE_KEY), y = A.studyYear(A.moscowNow().date), was = +store(YEAR_KEY) || y;
+  // Учебный год — по дате (с 20 августа новый) или по расписанию на сайте, если оно уже на новый год (бывает с ~11 августа)
+  function studyYearNow() {
+    var y = A.studyYear(A.moscowNow().date), d = state.data && +String(state.data.year || "").slice(0, 4);
+    return d > y ? d : y;
+  }
+  function promoteStored() {
+    var g = store(STORE_KEY), y = studyYearNow(), was = +store(YEAR_KEY) || y;
     if (g && was < y) {
       var up = A.promote(g, y - was);
+      state.promoted = { from: g, to: up };  // ссылка ?group=<старая группа> (закладка, вкладка) — тоже на новую
       if (up) store(STORE_KEY, up);
       else { try { localStorage.removeItem(STORE_KEY); } catch (e) {} }
     }
-    if (g) store(YEAR_KEY, String(y));
-  })();
+    if (g) store(YEAR_KEY, String(Math.max(was, y)));
+  }
+  promoteStored();
 
   // Сразу, ещё до загрузки данных: полоса дней, запомненная группа и сегодняшняя дата —
   // а не пустые «Группа / Расписание» (данные на слабом интернете идут несколько секунд)
@@ -1895,11 +1907,17 @@
         });
       });
     }
+    promoteStored();  // расписание на сайте уже на новый учебный год — группа тоже
     var wanted = params.get("group") || store(STORE_KEY);
+    if (state.promoted && wanted === state.promoted.from) {
+      wanted = state.promoted.to;
+      if (wanted) params.set("group", wanted); else params.delete("group");
+      history.replaceState(null, "", "?" + params.toString());
+    }
     if (wanted && groupInfo(wanted)) {
       state.group = wanted;
       store(STORE_KEY, wanted);
-      store(YEAR_KEY, String(A.studyYear(A.moscowNow().date)));
+      store(YEAR_KEY, String(studyYearNow()));
       // пары на сегодня закончились (с учётом замен) — молча открываем «Завтра»
       return Promise.all([scheduleFor(wanted), params.get("date") ? null : zamenaFor(A.moscowNow().date)]).then(function (r) {
         var s = r[0], now = A.moscowNow();

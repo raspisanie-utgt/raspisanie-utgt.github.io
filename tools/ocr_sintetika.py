@@ -33,7 +33,7 @@ DAYS = ["Понедельник", "Вторник", "Среда", "Четвер�
 
 def make_rows(rnd, vocab, rooms):
     out = []
-    for g in sorted(rnd.sample(scraper.KNOWN_GROUPS, rnd.randint(4, 12)), key=scraper.KNOWN_GROUPS.index):
+    for g in sorted(rnd.sample(scraper.known_groups(), rnd.randint(4, 12)), key=scraper.known_groups().index):
         for k in range(rnd.choice([1, 1, 1, 2, 2, 3])):
             les = rnd.choice(LESSONS)
             subj = rnd.choice(["Разговоры о важном", scraper.CANCEL]) if les == "8-30" else \

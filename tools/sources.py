@@ -22,10 +22,10 @@ PAGE = "https://utgt-pgups.ru/raspisaniya-i-grafiki.html"
 UA = {"User-Agent": "Mozilla/5.0 (utgt schedule bot; +https://github.com/raspisanie-utgt/raspisanie-utgt.github.io)"}
 LABEL = "источник"
 # PDF на странице, за появлением новых версий которых следим (очное отделение: расписание, звонки, график)
-WATCH = re.compile(r"raspisanie.*semestr|zvonk|kug.*ocn", re.I)
+WATCH = re.compile(r"raspisanie.*semestr|zvonk|kug.*(?<!za)ocn", re.I)
 # их разбирает tools/semestr.py — здесь о них задач не открываем (он сам напишет, вышло или нет)
 AUTO = {"расписание занятий", "учебный график"}
-AUTO_RE = re.compile(r"raspisanie.*semestr|kug.*ocn", re.I)
+AUTO_RE = re.compile(r"raspisanie.*semestr|kug.*(?<!za)ocn", re.I)
 
 
 def tracked():

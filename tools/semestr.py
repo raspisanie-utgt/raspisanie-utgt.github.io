@@ -36,7 +36,7 @@ import sources  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 SCHED_RE = re.compile(r"raspisanie.*semestr", re.I)
-KUG_RE = re.compile(r"kug.*ocn", re.I)
+KUG_RE = re.compile(r"kug.*(?<!za)ocn", re.I)  # очное, не заочное («zaocn»)
 FIXED = ["11-04", "02-23", "03-08", "05-01", "05-09", "06-12"]  # праздники, которые не переносятся с даты
 SWITCH_MAX_DAYS = 21  # новое расписание появляется на сайте самое раннее за 3 недели до начала семестра
 
@@ -74,8 +74,9 @@ def winter_break(cal, year):
     return c.most_common(1)[0][0] if c else None
 
 
-def day_off_share(cal, date):
-    """Доля групп, у которых в этот день нет занятий (воскресенье, праздник, каникулы, практика…)."""
+def day_off_share(cal, date, before=None):
+    """Доля групп, у которых в этот день нет занятий (воскресенье, праздник, каникулы, практика…).
+    before — учитывать только периоды, начавшиеся раньше (летом в графике уже есть следующий год)."""
     d = iso(date)
     if date.isoweekday() == 7 or any(h["date"] == d for h in cal.get("holidays", [])):
         return 1.0
@@ -83,8 +84,10 @@ def day_off_share(cal, date):
     if not groups:
         return 0.0
     # нет занятий: каникулы, практика и т. п.; у выпускников после последнего периода (экзамены сданы) — тоже
-    off = sum(any(p.get("no_classes") and p["from"] <= d <= p["to"] for p in g.get("periods", [])) or
-              bool(g.get("periods")) and all(p["to"] < d for p in g["periods"]) for g in groups.values())
+    def periods(g):
+        return [p for p in g.get("periods", []) if before is None or p["from"] < before]
+    off = sum(any(p.get("no_classes") and p["from"] <= d <= p["to"] for p in periods(g)) or
+              bool(periods(g)) and all(p["to"] < d for p in periods(g)) for g in groups.values())
     return off / len(groups)
 
 
@@ -96,7 +99,7 @@ def switch_on(valid_from, cal, today):
         return today
     d = start
     while (start - d).days < SWITCH_MAX_DAYS and d - dt.timedelta(days=1) > today and \
-            day_off_share(cal, d - dt.timedelta(days=1)) >= 0.8:
+            day_off_share(cal, d - dt.timedelta(days=1), valid_from) >= 0.8:
         d -= dt.timedelta(days=1)
     return d
 
@@ -258,7 +261,7 @@ def do_schedule(url, pdf, data_dir, today, log=print):
     nxt = load(data_dir / "next" / "index.json", {})
     key = (info["year"], info["semester"])
     cur_key = (cur.get("year", ""), cur.get("semester", 0))
-    if key < cur_key or (nxt and key < (nxt["year"], nxt["semester"])):
+    if key < cur_key:
         log(f"{url}: старое расписание ({info['semester']} семестр {info['year']}) — пропускаю")
         return None
     cal = load(data_dir / "calendar.json", {})
@@ -297,6 +300,8 @@ def do_schedule(url, pdf, data_dir, today, log=print):
             install(out, data_dir / "groups")
             return (f"Расписание {info['semester']} семестра {info['year']} на сайте техникума поменялось — сайт разобрал "
                     f"и выложил новое. Изменились группы: {', '.join(changed) or 'нет (только файл)'} — сверить их с PDF: {url}")
+        if nxt and key < (nxt["year"], nxt["semester"]):
+            return None  # уже ждёт расписание ещё более позднего семестра — это пропускаем
         index["switch_on"] = iso(switch_on(valid_from, cal, today))
         save(out / "index.json", index)
         if index["switch_on"] <= iso(today):
@@ -378,30 +383,49 @@ def main(data_dir=DATA, today=None):
     state = load(state_path, {"tried": {}})
     maybe_switch(data_dir, today)
     current = {load(data_dir / "groups" / "index.json", {}).get("source"), load(data_dir / "calendar.json", {}).get("source")}
-    for url in candidates(data_dir):
-        fp = sources.fingerprint(url)
+    try:
+        urls = candidates(data_dir)
+    except requests.RequestException as e:
+        print(f"страница техникума не открылась — в следующий раз ({e})")
+        urls = []
+    for url in urls:
+        try:
+            fp = sources.fingerprint(url)
+        except requests.RequestException as e:
+            print(f"{url}: сайт техникума не ответил — в следующий раз ({e})")
+            continue
         if "status" in fp:
             print(f"{url}: сайт техникума ответил {fp['status']} — в следующий раз")
             continue
         prev = state["tried"].get(url)
-        if prev == fp:
+        if prev is not None and {k: v for k, v in prev.items() if k != "sha1"} == fp:
             continue
         if prev is None and url in current:
             state["tried"][url] = fp  # первая проверка: это то, из чего сайт уже собран
             continue
         print(f"разбираю {url}")
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
                 pdf = download(url, tmp)
+            except requests.RequestException as e:  # обрыв связи — попробуем в следующий час
+                print(f"{url}: не скачался — {e}")
+                continue
+            except ValueError as e:
+                pdf, text = None, f"По ссылке на сайте техникума не PDF ({e}) — {url}"
+            if pdf:
                 fp["sha1"] = hashlib.sha1(pdf.read_bytes()).hexdigest()
                 if prev and prev.get("sha1") == fp["sha1"]:
                     state["tried"][url] = fp
+                    save(state_path, state)
                     continue
-                text = do_calendar(url, pdf, data_dir) if KUG_RE.search(url) else do_schedule(url, pdf, data_dir, today)
-        except Exception as e:  # noqa: BLE001 — один плохой PDF не мешает остальным; попробуем снова в следующий час
-            print(f"{url}: не вышло — {e}")
-            continue
-        state["tried"][url] = fp
+                try:
+                    text = do_calendar(url, pdf, data_dir) if KUG_RE.search(url) else do_schedule(url, pdf, data_dir, today)
+                except Exception as e:  # noqa: BLE001 — вёрстка PDF другая: сайт работает по-старому, человеку — заметка
+                    text = (f"PDF на сайте техникума разобрать не вышло ({type(e).__name__}: {e}) — сайт работает "
+                            f"по-старому. Похоже, поменялся вид таблицы; разобрать вручную: tools/extract_schedule.py / "
+                            f"tools/extract_calendar.py. PDF: {url}")
+        state["tried"][url] = fp  # тот же файл больше не разбираем — заметка одна; поменяется файл — попробуем снова
+        save(state_path, state)
         if text:
             print(text)
             notice(text, data_dir)

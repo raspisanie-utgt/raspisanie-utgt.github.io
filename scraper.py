@@ -38,11 +38,29 @@ KEEP_DAYS = 21
 MONTHS = {m: i + 1 for i, m in enumerate(
     "января февраля марта апреля мая июня июля августа сентября октября ноября декабря".split())}
 
-# Все группы очного отделения из шапки расписания на семестр
+# Группы очного отделения — из расписания на сайте (data/groups/index.json, и отложенного нового семестра в
+# data/next/): с нового учебного года появляются новые (21-В, 31-В…). Этот список — если файлов нет.
 KNOWN_GROUPS = ["11-П", "11-Д", "11-А", "11-С", "11-В", "11-Л",
                 "21-П", "21-Д", "21-А", "21-С", "21-Л",
                 "31-П", "31-Д", "31-А", "31-С",
                 "41-П", "41-Д", "41-А", "41-С"]
+_GROUPS_CACHE = {}
+
+
+def known_groups():
+    out = []
+    for p in (DATA / "groups" / "index.json", DATA / "next" / "index.json"):
+        try:
+            key = (str(p), p.stat().st_mtime)
+        except OSError:
+            continue
+        if key not in _GROUPS_CACHE:
+            try:
+                _GROUPS_CACHE[key] = [g["group"] for g in json.loads(p.read_text(encoding="utf-8"))["groups"]]
+            except (OSError, ValueError, KeyError):
+                _GROUPS_CACHE[key] = []
+        out += [g for g in _GROUPS_CACHE[key] if g not in out]
+    return out or KNOWN_GROUPS
 # Как tesseract путает буквы групп. Цифру вместо буквы («11-1», «21-7») не угадываем: на мелких картинках
 # так читаются и «Д», и «П» — пусть решают другие чтения той же ячейки.
 LETTER_FIX = {"п": "П", "д": "Д", "а": "А", "a": "А", "с": "С",
@@ -176,7 +194,7 @@ def normalize_group(text):
         return None, not re.search(r"\d", text)
     letter = LETTER_FIX.get(m.group(2), LETTER_FIX.get(m.group(2).lower(), m.group(2).upper()))
     group = f"{m.group(1)}1-{letter}"
-    return (group, True) if group in KNOWN_GROUPS else (group, False)
+    return (group, True) if group in known_groups() else (group, False)
 
 
 def known_rooms():
@@ -407,8 +425,9 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
 
 def expected_week(date, anchor=None):
     """Номер недели (1/2) по расчёту от опорной даты расписания — как weekNumber в site/agenda.js."""
-    if anchor is None:
-        anchor = json.loads((DATA / "groups" / "11a.json").read_text(encoding="utf-8")).get("week_anchor")
+    if anchor is None:  # у всех групп одна нумерация недель — берём у первой в списке
+        first = json.loads((DATA / "groups" / "index.json").read_text(encoding="utf-8"))["groups"][0]["file"]
+        anchor = json.loads((DATA / "groups" / first).read_text(encoding="utf-8")).get("week_anchor")
     if not anchor:
         return None
     weeks = (dt.date.fromisoformat(date) - dt.date.fromisoformat(anchor["date"])).days // 7

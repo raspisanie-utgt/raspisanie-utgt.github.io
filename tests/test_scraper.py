@@ -328,3 +328,13 @@ def test_section_words():
       <p>на 3 ноября 2026 года очное отделение</p><img src="/i/o.png"></div>"""
     got = {b["section"]: [i.rsplit("/", 1)[1] for i in b["images"]] for b in scraper.parse_page(html)}
     assert got == {"zaochnoe": ["z1.png", "z2.png"], "ochnoe": ["o.png"]}
+
+
+def test_known_groups_from_schedule(tmp_path, monkeypatch):
+    """С нового учебного года появляются новые группы (21-В): список — из расписания на сайте."""
+    g = tmp_path / "groups"
+    g.mkdir()
+    (g / "index.json").write_text(json.dumps({"groups": [{"group": "21-В", "file": "21v.json"}, {"group": "21-Д", "file": "21d.json"}]}), encoding="utf-8")
+    monkeypatch.setattr(scraper, "DATA", tmp_path)
+    assert scraper.normalize_group("21-В") == ("21-В", True)
+    assert scraper.normalize_group("31-В")[1] is False
