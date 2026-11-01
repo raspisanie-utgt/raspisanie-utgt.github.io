@@ -365,6 +365,9 @@
         it.teacher = Teachers.guessTeacher(schedule, it.subject);
         it.guessed = !!it.teacher;
       }
+      // «Разговоры о важном» ведёт куратор группы (data/info.json)
+      var cur = ((state.data.info || {}).curators || {})[state.group];
+      if (/Разговоры о важном/i.test(it.subject) && !it.teacher && cur) { it.teacher = cur; it.curator = true; }
     });
     // иностранный язык: только своя подгруппа (если язык выбран)
     return A.forLanguage(ag, lang());
@@ -469,13 +472,14 @@
   document.addEventListener("click", function (e) { if (!e.target.closest("#calendar li")) popTip(null); });
 
   // «Изъюрова Н.М.» -> полное ФИО и как обращаться (по имени-отчеству)
-  function teacherInfo(teacher) {
-    if (!teacher) return "Преподаватель неизвестен — этого предмета нет в расписании группы.";
+  function teacherInfo(teacher, it) {
+    if (!teacher) return it && /Разговоры о важном/i.test(it.subject) ? "Ведёт куратор группы."
+      : "Преподаватель неизвестен — этого предмета нет в расписании группы.";
     var byShort = state.data.teachers.by_short || {};
     return teacher.split(" / ").map(function (t) {
       var full = byShort[t.trim()];
       if (!full) return esc(t) + " — полного имени нет в списке преподавателей на сайте техникума.";
-      return "<strong>" + esc(full) + "</strong>";
+      return "<strong>" + esc(full) + "</strong>" + (it && it.curator ? "Куратор группы" : "");
     }).join("");
   }
 
@@ -485,7 +489,8 @@
   // Расписания всех групп — для режима преподавателя, грузятся при первом выборе
   function allGroups() {
     return Promise.all(state.data.groups.map(function (g) {
-      return scheduleFor(g.group).then(function (s) { return { group: g.group, schedule: s }; });
+      var cur = ((state.data.info || {}).curators || {})[g.group];
+      return scheduleFor(g.group).then(function (s) { return { group: g.group, schedule: s, curator: cur || "" }; });
     }));
   }
 
@@ -1035,7 +1040,7 @@
         '<div><div class="subj">' + subjectsHTML(it.subject) + tags + "</div>" +
         '<div class="who">' + [esc(who), n ? '<span class="nw">' + n + "</span>" : ""].filter(Boolean).join(" · ") + "</div>" + wasLine + "</div>" +
         '<div class="room">' + roomsHTML(it.room) + "</div>" +
-        '<div class="full"><div><div class="in">' + fullSubject(it.subject) + teacherInfo(it.teacher) +
+        '<div class="full"><div><div class="in">' + fullSubject(it.subject) + teacherInfo(it.teacher, it) +
           (roomPlaces(it.room).length ? '<small class="place">' + roomPlaces(it.room).map(esc).join("<br>") + "</small>" : "") +
           "</div></div></div>" +
         (it.state === "now" ? timerHTML(it, now) : "") + "</article>";

@@ -68,6 +68,8 @@
     ag.items.forEach(function (it) {
       var names = split(it.teacher).map(norm), rooms = split(it.room), subj = split(it.subject);
       var i = names.indexOf(who), guessed = false;
+      // «Разговоры о важном» ведёт куратор группы
+      if (i < 0 && !it.teacher && s.curator && /Разговоры о важном/i.test(it.subject) && norm(s.curator) === who) i = 0;
       if (i < 0 && it.changed && !it.teacher && it.subject !== A.CANCEL && norm(guessTeacher(s.schedule, it.subject)) === who) {
         i = 0; guessed = true;
       }
@@ -90,7 +92,7 @@
   }
 
   // День преподавателя: пары по времени; одна и та же пара у нескольких групп (поток) — одной строкой
-  // schedules: [{ group, schedule }]; zamena(group) -> замены группы на эту дату или null
+  // schedules: [{ group, schedule, curator }]; zamena(group) -> замены группы на эту дату или null
   function day(teacher, date, schedules, bells, calendar, zamena) {
     var who = norm(teacher), all = [], removed = [];
     schedules.forEach(function (s) {

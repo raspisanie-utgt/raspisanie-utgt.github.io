@@ -81,3 +81,12 @@ test("предмет замены сопоставляется с опечатк
   assert.ok(!T.sameSubject("Математика", "Информатика"));
   assert.ok(!T.sameSubject("Русский язык", "Иностранный язык (английский)"));
 });
+
+test("«Разговоры о важном» — у куратора группы в режиме преподавателя", () => {
+  const curators = read("tests/fixtures/data/info.json").curators;
+  const withCur = schedules.map((s) => Object.assign({}, s, { curator: curators[s.group] || "" }));
+  const d = T.day(curators["11-А"], "2026-11-09", withCur, bells, cal, null);
+  assert.ok(d.items.some((l) => /Разговоры о важном/.test(l.subject) && l.groups.includes("11-А")));
+  const none = T.day(curators["11-А"], "2026-11-09", schedules, bells, cal, null);  // без кураторов — как раньше
+  assert.ok(!none.items.some((l) => /Разговоры о важном/.test(l.subject)));
+});
