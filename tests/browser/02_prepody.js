@@ -2,7 +2,9 @@
 const { read, URL, zdays, launch, page, report, ROOT } = require('./lib');
 const T = require(ROOT + '/site/teachers.js');
 const ix = read('data/groups/index.json').groups, bells = read('data/bells.json'), cal = read('data/calendar.json');
-const sch = ix.map((g) => ({ group: g.group, schedule: read('data/groups/' + g.file) }));
+// «Разговоры о важном» ведёт куратор группы (data/info.json) — как на сайте
+const cur = (read('data/info.json') || {}).curators || {};
+const sch = ix.map((g) => ({ group: g.group, schedule: read('data/groups/' + g.file), curator: cur[g.group] || '' }));
 const zf = (d) => { const z = zdays().includes(d) ? read('data/zameny/' + d + '.json') : null; return (g) => (z ? Object.assign({}, z, { changes: (z.all_changes || {})[g] || [] }) : null); };
 (async () => {
   const days = zdays().slice(-3).concat((cal.holidays || []).map((h) => h.date).filter((d) => d > zdays().slice(-1)[0]).slice(0, 1));
