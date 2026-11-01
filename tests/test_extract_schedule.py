@@ -103,3 +103,9 @@ def test_popravki_rename_subject_and_fix_room():
     E.apply_popravki("31-Д", other, pop)
     assert other["2"][0]["room"] == "1-15"  # поправка только для своей группы
 
+
+
+def test_group_slug_any_specialty():
+    """Новые специальности (новые буквы групп) — тоже латиницей, старые имена файлов не меняются."""
+    assert [E.group_slug(g) for g in ("11-А", "21-С", "31-П", "11-В", "11-Л", "41-Д")] == ["11a", "21s", "31p", "11v", "11l", "41d"]
+    assert E.group_slug("11-М") == "11m" and E.group_slug("21-Э") == "21e2" and E.group_slug("11-Ж") == "11zh"
