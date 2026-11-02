@@ -16,6 +16,8 @@ from urllib.parse import urljoin
 
 import requests
 
+import utgt_net  # noqa: F401,E402 — https к сайту техникума не работает -> http
+
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "data" / "sources.json"
 PAGE = "https://utgt-pgups.ru/raspisaniya-i-grafiki.html"

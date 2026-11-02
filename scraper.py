@@ -24,6 +24,9 @@ from zoneinfo import ZoneInfo
 
 import numpy as np
 import requests
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
+import utgt_net  # noqa: F401,E402 — https к сайту техникума не работает -> http
 from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 

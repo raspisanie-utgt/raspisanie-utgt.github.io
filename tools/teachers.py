@@ -17,6 +17,8 @@ from urllib.parse import urljoin
 
 import pdfplumber
 import requests
+
+import utgt_net  # noqa: F401,E402 — https к сайту техникума не работает -> http
 from bs4 import BeautifulSoup
 
 PAGE = "https://utgt-pgups.ru/svedeniya/pedagogicheskiy-sostav.html"

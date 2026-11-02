@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 import requests
+
+import utgt_net  # noqa: F401,E402 — https к сайту техникума не работает -> http
 from bs4 import BeautifulSoup
 
 URL = "https://utgt-pgups.ru/novosti.html"
