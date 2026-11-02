@@ -236,7 +236,7 @@
     });
     scrollStrip();
     drawTomorrowDot(now);
-    if (state.offset === "week" || state.teacher || !isDesk()) $("nextDay").hidden = $("nextDay2").hidden = true;
+    if (state.offset === "week" || state.teacher || !isDesk()) hideNext();
     $("dayHead").hidden = state.offset === "week";
     $("langSwitch").hidden = !!state.teacher;
     $("langToggle").checked = lang() === "немецкий";
@@ -906,7 +906,7 @@
     drawDayHead(ag, date, now);
     drawNextUp(ag, date, now);
     state.shareDay = { ag: ag, date: date };
-    if (isDesk() && !state.teacher) renderNext(date, now); else $("nextDay").hidden = $("nextDay2").hidden = true;
+    if (isDesk() && !state.teacher) renderNext(date, now); else hideNext();
 
     animIn($("dayView"));
     var c = $("cancelled");
@@ -954,16 +954,18 @@
     $("dayHeadM").textContent = pairsMeta(ag, date, now);
   }
   // следующие учебные дни после date (пропуская воскресенья, праздники, каникулы) — вторым столбцом,
-  // на широком мониторе (21:9, desktop.css) — и третьим
+  // на широких мониторах (21:9, 32:9) — ещё до трёх: сколько столбцов показать, решает desktop.css
+  var NEXT = ["", "2", "3", "4"];
+  function hideNext() { NEXT.forEach(function (n) { $("nextDay" + n).hidden = true; }); }
   function renderNext(date, now) {
     var g = state.group, token = renderNext.token = (renderNext.token || 0) + 1;
     scheduleFor(g).then(function (schedule) {
       var days = [];
-      for (var i = 1; i <= 28 && days.length < 2; i++) {
+      for (var i = 1; i <= 35 && days.length < NEXT.length; i++) {
         var c = A.addDays(date, i);
         if (A.isoWeekday(c) !== 7 && build(c, schedule, null).items.length) days.push(c);
       }
-      return Promise.all(["", "2"].map(function (n, k) {
+      return Promise.all(NEXT.map(function (n, k) {
         var d = days[k];
         if (!d) { $("nextDay" + n).hidden = true; return null; }
         return zamenaFor(d).then(function (raw) {

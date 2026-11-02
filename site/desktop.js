@@ -4,7 +4,8 @@
 // На телефоне страница не меняется.
 (function () {
   "use strict";
-  var mq = window.matchMedia("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
+  // компьютер с мышью — от 1024 точек; большой планшет, повёрнутый горизонтально, — от 1100 (телефоны лёжа уже)
+  var mq = window.matchMedia("(min-width: 1024px) and (hover: hover) and (pointer: fine), (min-width: 1100px) and (min-height: 700px)");
   var wrap = document.querySelector("main.wrap");
   var order = Array.prototype.slice.call(wrap.children); // исходный порядок — чтобы вернуть как было
   var day = document.getElementById("dayView");

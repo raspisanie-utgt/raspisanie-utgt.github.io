@@ -23,6 +23,8 @@ const WIDTHS = [
   { w: 1024, h: 768, mob: false }, { w: 1366, h: 768, mob: false }, { w: 1920, h: 1000, mob: false },
   // 21:9 — вытянутый телефон и широкие мониторы (там третий день столбцом)
   { w: 412, h: 960, mob: true }, { w: 2560, h: 1080, mob: false }, { w: 3440, h: 1440, mob: false },
+  // планшет лёжа (сенсорный — тоже раскладка для компьютера), вертикальный монитор, 32:9
+  { w: 1180, h: 820, mob: true }, { w: 1080, h: 1920, mob: false }, { w: 5120, h: 1440, mob: false },
 ];
 
 async function launch() { return chromium.launch(); }
