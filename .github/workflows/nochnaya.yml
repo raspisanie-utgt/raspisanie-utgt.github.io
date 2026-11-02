@@ -1,0 +1,62 @@
+name: Ночная полная проверка
+
+# Каждую ночь в 3:00 по Москве: все проверки в браузере (tests/browser — вёрстка на всех экранах, стресс-тест,
+# функции, офлайн, скорость…) и обычные тесты. При правках днём — только быстрые проверки (CLAUDE.md).
+# Нашлись проблемы — задача с меткой «ночная проверка»; всё чисто — открытая задача закрывается сама.
+on:
+  schedule:
+    - cron: "0 0 * * *"  # 00:00 UTC = 03:00 МСК
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nochnaya
+  cancel-in-progress: false
+
+jobs:
+  proverka:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Питон, tesseract и браузер для проверок
+        run: |
+          pip install -r requirements.txt
+          P="tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng"
+          sudo apt-get install -y -q $P || { sudo apt-get update -q && sudo apt-get install -y -q $P; }
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Обычные тесты
+        id: unit
+        continue-on-error: true
+        run: |
+          mkdir -p _proverka
+          k=0
+          python -m pytest -q > _proverka/00_testy.txt 2>&1 || k=1
+          for f in tests/*.test.js; do node --test "$f" >> _proverka/00_testy.txt 2>&1 || k=1; done
+          python tools/check_data.py >> _proverka/00_testy.txt 2>&1 || k=1
+          tail -60 _proverka/00_testy.txt
+          echo "ИТОГ: проблем $k" >> _proverka/00_testy.txt
+
+      - name: Полная проверка в браузере
+        continue-on-error: true
+        run: bash tests/browser/run.sh
+
+      - name: Итог -> задача
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEALTH_ASSIGNEE: olegskorostrel-wq
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          grep -h "ИТОГ" _proverka/00_testy.txt | sed 's/ИТОГ: проблем/00_testy                     проблем:/' >> _proverka/svodka.txt || true
+          python tools/nochnaya.py _proverka

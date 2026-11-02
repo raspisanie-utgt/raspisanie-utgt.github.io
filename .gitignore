@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 _preview/
 _proverka/
+node_modules/
