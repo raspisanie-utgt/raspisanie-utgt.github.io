@@ -236,7 +236,7 @@
     });
     scrollStrip();
     drawTomorrowDot(now);
-    if (state.offset === "week" || state.teacher || !isDesk()) $("nextDay").hidden = true;
+    if (state.offset === "week" || state.teacher || !isDesk()) $("nextDay").hidden = $("nextDay2").hidden = true;
     $("dayHead").hidden = state.offset === "week";
     $("langSwitch").hidden = !!state.teacher;
     $("langToggle").checked = lang() === "немецкий";
@@ -906,7 +906,7 @@
     drawDayHead(ag, date, now);
     drawNextUp(ag, date, now);
     state.shareDay = { ag: ag, date: date };
-    if (isDesk() && !state.teacher) renderNext(date, now); else $("nextDay").hidden = true;
+    if (isDesk() && !state.teacher) renderNext(date, now); else $("nextDay").hidden = $("nextDay2").hidden = true;
 
     animIn($("dayView"));
     var c = $("cancelled");
@@ -953,24 +953,28 @@
     $("dayHeadT").textContent = dayLabel(date, now);
     $("dayHeadM").textContent = pairsMeta(ag, date, now);
   }
-  // следующий учебный день после date (пропуская воскресенья, праздники, каникулы) — вторым столбцом
+  // следующие учебные дни после date (пропуская воскресенья, праздники, каникулы) — вторым столбцом,
+  // на широком мониторе (21:9, desktop.css) — и третьим
   function renderNext(date, now) {
     var g = state.group, token = renderNext.token = (renderNext.token || 0) + 1;
     scheduleFor(g).then(function (schedule) {
-      var d = null;
-      for (var i = 1; i <= 21 && !d; i++) {
+      var days = [];
+      for (var i = 1; i <= 28 && days.length < 2; i++) {
         var c = A.addDays(date, i);
-        if (A.isoWeekday(c) !== 7 && build(c, schedule, null).items.length) d = c;
+        if (A.isoWeekday(c) !== 7 && build(c, schedule, null).items.length) days.push(c);
       }
-      if (!d) { $("nextDay").hidden = true; return; }
-      return zamenaFor(d).then(function (raw) {
-        if (token !== renderNext.token || !isDesk()) return;
-        var z = zamenaForGroup(raw, g), ag = build(d, schedule, z);
-        $("nextT").textContent = dayLabel(d, now);
-        $("nextM").textContent = pairsMeta(ag, d, now);
-        $("nextList").innerHTML = cardsHTML(ag, d, now, zamenaUpdate(z, g));
-        $("nextDay").hidden = false;
-      });
+      return Promise.all(["", "2"].map(function (n, k) {
+        var d = days[k];
+        if (!d) { $("nextDay" + n).hidden = true; return null; }
+        return zamenaFor(d).then(function (raw) {
+          if (token !== renderNext.token || !isDesk()) return;
+          var z = zamenaForGroup(raw, g), ag = build(d, schedule, z);
+          $("nextT" + n).textContent = dayLabel(d, now);
+          $("nextM" + n).textContent = pairsMeta(ag, d, now);
+          $("nextList" + n).innerHTML = cardsHTML(ag, d, now, zamenaUpdate(z, g));
+          $("nextDay" + n).hidden = false;
+        });
+      }));
     });
   }
   // полоса дней (две недели без воскресений и «Неделя») — вместо вкладок «Сегодня / Завтра / Неделя»

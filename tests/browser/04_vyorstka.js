@@ -1,4 +1,4 @@
-// Вёрстка: все группы × «Сегодня/Завтра/Неделя» × 9 ширин экрана (280…1920) + крупный шрифт (×1.3, ×1.6),
+// Вёрстка: все группы × «Сегодня/Завтра/Неделя» × 12 ширин экрана (280…3440, с 21:9) + крупный шрифт (×1.3, ×1.6),
 // светлая и тёмная тема. Всё раскрыто. Ничего не вылезает за карточки и экран, текст не обрезается,
 // длинное в окнах листается.
 const { URL, WIDTHS, groups, launch, page, report, tab, openWhere, openHistory } = require('./lib');
@@ -54,7 +54,7 @@ const openAll = (p) => p.evaluate(() => {
   const sets = WIDTHS.map((x) => ({ ...x, scale: 1 })).concat([{ w: 302, h: 615, mob: true, scale: 1.3 }, { w: 246, h: 500, mob: true, scale: 1.6, dark: true }]);
   // W=280,246 — только выбранные ширины
   for (const s of sets.filter((x) => !process.env.W || process.env.W.split(',').includes(String(x.w)))) {
-    const p = await page(b, { w: s.w, h: s.h, mob: s.mob, dark: s.dark || s.w === 1920 || s.w === 280, scale: 1 });
+    const p = await page(b, { w: s.w, h: s.h, mob: s.mob, dark: s.dark || s.w === 1920 || s.w === 280 || s.w === 2560, scale: 1 });
     const tag = s.w + 'px' + (s.scale !== 1 ? ' (393 при масштабе ×' + s.scale + ')' : '');
     const check = async (where) => { await p.waitForTimeout(800); await openAll(p); await p.waitForTimeout(900); (await p.evaluate(layoutCheck)).forEach((x) => problems.push(tag + ', ' + where + ': ' + x)); };
     const all = s.w === 393 || s.w === 320 || s.scale !== 1 ? groups() : ['11-А', '21-С', '31-Д', '41-П', '41-С'];
