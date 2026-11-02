@@ -1557,15 +1557,22 @@
     // медленный интернет: сначала быстро показали сохранённое — через несколько секунд тихо подтягиваем свежее
     // (сеть за это время успевает догрузить, плашка сменится на «Обновлено в …»)
     setTimeout(function () { if (state.savedHit && navigator.onLine) refresh(); }, 5000);
-    // Анонимный счётчик устройств (tools/schetchik.gs, таблица на почте расписания): раз в день «+1»
-    // и открыт ли сайт как приложение. Ни меток, ни адресов — на устройстве хранится только дата
-    // последней отметки (см. privacy.html). Автопроверки (Playwright) не считаются.
+    // Анонимный счётчик устройств (tools/schetchik.gs, таблица на почте расписания): раз в день «+1»,
+    // открыт ли сайт как приложение и вид устройства (телефон / планшет / компьютер). Ни меток, ни адресов —
+    // на устройстве хранится только дата последней отметки (см. privacy.html). Автопроверки (Playwright) не считаются.
     setTimeout(function () {
       var today = A.moscowNow().date;
       if (navigator.webdriver || !navigator.onLine || store("utgt-counted") === today) return;
       store("utgt-counted", today);
-      fetch(COUNTER + "?app=" + (standalone() ? 1 : 0), { mode: "no-cors", cache: "no-store", keepalive: true }).catch(function () {});
+      fetch(COUNTER + "?app=" + (standalone() ? 1 : 0) + "&dev=" + deviceKind(), { mode: "no-cors", cache: "no-store", keepalive: true }).catch(function () {});
     }, 4000);
+    // Вид устройства для счётчика: сенсорный экран без мыши — телефон (узкая сторона экрана меньше 600) или планшет
+    function deviceKind() {
+      var touch = window.matchMedia && matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
+      var mobi = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+      if (!touch && !mobi) return "k";
+      return Math.min(screen.width || 0, screen.height || 0) < 600 ? "t" : "p";
+    }
     // Проверка интернета для значка: каждые 15 с, пока страница на экране, — крошечный запрос одних
     // заголовков мимо офлайн-кеша. Ответил быстро — всё хорошо, медленно — «медленный», не ответил — «нет».
     // Показано сохранённое, а связь появилась — сразу подтягиваем свежие данные.
