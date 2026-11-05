@@ -251,6 +251,27 @@ def download(url, dest):
     return dest
 
 
+def incoming_groups(incoming):
+    """Фото, присланные ботом: {номер сообщения: [фото по порядку]}.
+
+    Бот кладёт страницы одного распоряжения как <номер>_1.png, <номер>_2.png —
+    они разбираются вместе, как картинки одного дня с сайта техникума.
+    """
+    groups = {}
+    for path in sorted(incoming.iterdir()):
+        if path.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+            continue
+        stem = path.stem
+        key, _, tail = stem.rpartition("_")
+        if not key or not tail.isdigit():
+            key = stem
+        groups.setdefault(key, []).append(path)
+    for files in groups.values():
+        files.sort(key=lambda p: (int(p.stem.rpartition("_")[2]) if p.stem.rpartition("_")[2].isdigit() else 0,
+                                  p.name))
+    return groups
+
+
 def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
     """Разобрать фото, присланные ботом в data/vk-incoming/.
 
@@ -263,23 +284,21 @@ def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
     if not incoming.is_dir():
         return []
     results = []
-    for path in sorted(incoming.iterdir()):
-        if path.suffix.lower() not in (".png", ".jpg", ".jpeg"):
-            continue
-        msg = path.stem
+    for msg, files in sorted(incoming_groups(incoming).items()):
         try:
-            res = publish([path], out_dir=out_dir, today=today, log=log)
+            res = publish(files, out_dir=out_dir, today=today, log=log)
         except Exception as e:
             res = {"status": "error", "error": str(e)[:300]}
         res["msg"] = msg
         results.append(res)
-        log("замена из беседы ВК (%s): %s%s" % (msg, res.get("status"),
-                                               (" за " + res["date"]) if res.get("date") else ""))
-        # картинка разобрана — убрать её, чтобы не попала в сайт и не повторялась
-        try:
-            path.unlink()
-        except OSError:
-            pass
+        log("замена из ВК (%s): %s%s" % (msg, res.get("status"),
+                                         (" за " + res["date"]) if res.get("date") else ""))
+        # картинки разобраны — убрать их, чтобы не попали в сайт и не повторялись
+        for path in files:
+            try:
+                path.unlink()
+            except OSError:
+                pass
     if results:
         write_result(results[-1], data_dir)
     return results
