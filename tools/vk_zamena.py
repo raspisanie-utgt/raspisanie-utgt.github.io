@@ -1,19 +1,21 @@
 """Замена, присланная в беседу ВК: фото -> распознавание -> файл дня -> сайт.
 
-Запускает сервер GitHub (шаг «Замена, присланная в беседу ВК» в .github/workflows/update.yml):
+Кто что делает:
+  * бот домашки (dz-bot, скрипт Гугла) ловит в беседе «Помощник 11-А» фото с словом
+    «замена»/«распоряжение», кладёт картинку в репозиторий сайта (data/vk-incoming/)
+    и запускает проверку сайта на GitHub;
+  * эта проверка (scraper.py -> process_incoming) распознаёт картинку и, если всё прочиталось
+    уверенно, публикует замену: data/zameny/<дата>.json и <дата>-1.png, список дней (index.json);
+  * что получилось — пишется в data/vk-result.json; бот читает его и пишет владельцу в личку,
+    а если распозналось сомнительно — ещё и открывает задачу в GitHub.
 
+Дата замены — только с картинки («... на 06.11.2026 года»), как решил владелец.
+Распознавание — тем же кодом, что и ежечасная проверка сайта (scraper.ocr_table).
+
+Запуск вручную (для проверки):
+
+    python tools/vk_zamena.py --file data/zameny/2026-11-06-1.png
     python tools/vk_zamena.py --url https://vk.com/photo-... --msg 12345
-
-Что делает:
-  1. скачивает фото из сообщения беседы «Помощник 11-А»;
-  2. распознаёт текст распоряжения (tesseract, русский) и берёт из него дату замены
-     («... на 06.11.2026 года») — дата только с картинки;
-  3. распознаёт таблицу замен тем же кодом, что и ежечасная проверка сайта (scraper.ocr_table);
-  4. если всё прочиталось уверенно — пишет data/zameny/<дата>.json и <дата>-1.png
-     и обновляет список дней (index.json); если нет — ничего не публикует, а открывает задачу;
-  5. пишет data/vk-result.json — что получилось; бот домашки читает его и пишет владельцу в личку.
-
-Ключ нужен один — GITHUB_TOKEN (для задачи); его даёт GitHub Actions.
 """
 import argparse
 import datetime as dt
@@ -41,6 +43,8 @@ MONTH_WORD = "|".join(sorted(MONTHS, key=len, reverse=True))
 LABEL = "замена из ВК"
 # сколько фото одного распоряжения берём (второй лист — продолжение таблицы)
 MAX_PHOTOS = 3
+# папка, куда бот кладёт присланные фото (в репозитории)
+INCOMING = "vk-incoming"
 
 
 # ---------- дата замены с картинки ----------
@@ -159,14 +163,6 @@ def why(meta):
 
 # ---------- разбор фото ----------
 
-def download(url, dest):
-    """Скачать фото сообщения ВК."""
-    r = requests.get(url, timeout=60, headers=scraper.UA)
-    r.raise_for_status()
-    dest.write_bytes(r.content)
-    return dest
-
-
 def build_meta(date, images, tables, all_changes, title, now=None):
     """Файл дня — как у ежечасной проверки сайта, но из фото из беседы."""
     now = now or dt.datetime.now(scraper.TZ).isoformat(timespec="minutes")
@@ -190,71 +186,115 @@ def build_meta(date, images, tables, all_changes, title, now=None):
     }
 
 
-def process(urls, msg="", out_dir=None, data_dir=None, today=None, dry=False, log=print):
-    """Разбор фото распоряжения из беседы. Возвращает результат (пишется в data/vk-result.json)."""
+def publish(files, out_dir=None, today=None, dry=False, log=print):
+    """Распознать фото и, если всё чисто, опубликовать замену на сайте.
+
+    files — пути к картинкам (первая — с шапкой распоряжения, остальные — продолжение таблицы).
+    Возвращает результат: {status, date, groups, ...}.
+    """
     out_dir = Path(out_dir) if out_dir else scraper.OUT_DIR
     today = today or dt.datetime.now(scraper.TZ).date()
-    urls = [u.strip() for u in urls if u.strip()][:MAX_PHOTOS]
-    tmpdir = tempfile.mkdtemp(prefix="vkzam")
-    try:
-        files = []
-        for i, url in enumerate(urls, 1):
-            p = Path(tmpdir) / ("photo%d.png" % i)
-            download(url, p)
-            files.append(p)
-        if not files:
-            return {"status": "error", "error": "нечего скачивать", "msg": msg}
+    files = [Path(f) for f in files][:MAX_PHOTOS]
 
-        date, text = None, ""
-        for p in files:  # дата на первом листе, но если там не нашлось — посмотрим остальные
-            d, t = date_from_image(p, today)
-            text = text or t
-            if d:
-                date = d
-                break
-        if not date:
-            return {"status": "no_date", "error": "на картинке не нашлась дата замены",
-                    "text": _norm(text)[:400], "msg": msg}
+    date, text = None, ""
+    for p in files:  # дата на первом листе, но если там не нашлось — посмотрим остальные
+        d, t = date_from_image(p, today)
+        text = text or t
+        if d:
+            date = d
+            break
+    if not date:
+        return {"status": "no_date", "error": "на картинке не нашлась дата замены",
+                "text": _norm(text)[:400]}
 
-        meta_path = out_dir / ("%s.json" % date)
-        if meta_path.exists():
-            return {"status": "already", "date": date, "msg": msg}
+    meta_path = out_dir / ("%s.json" % date)
+    if meta_path.exists():
+        return {"status": "already", "date": date}
 
-        vocab = scraper.subject_vocab()
-        tables = []
-        for p in files:
-            tables.append(scraper.ocr_table(p, vocab, continued=any(x.get("in_table") for x in tables)))
-        title = next((t["title"] for t in tables if t.get("title")), "")
-        scraper.check_with_schedule(tables, date, title)
-        all_changes = scraper.all_group_changes(tables)
+    vocab = scraper.subject_vocab()
+    tables = []
+    for p in files:
+        tables.append(scraper.ocr_table(p, vocab, continued=any(x.get("in_table") for x in tables)))
+    title = next((t["title"] for t in tables if t.get("title")), "")
+    scraper.check_with_schedule(tables, date, title)
+    all_changes = scraper.all_group_changes(tables)
 
-        images = []
-        for i, p in enumerate(files, 1):
-            blob = p.read_bytes()
-            ext = ".jpg" if blob[:2] == b"\xff\xd8" else ".png"
-            images.append({"url": scraper.URL, "file": "%s-%d%s" % (date, i, ext),
-                           "sha1": hashlib.sha1(blob).hexdigest()})
+    images = []
+    for i, p in enumerate(files, 1):
+        blob = p.read_bytes()
+        ext = ".jpg" if blob[:2] == b"\xff\xd8" else ".png"
+        images.append({"url": scraper.URL, "file": "%s-%d%s" % (date, i, ext),
+                       "sha1": hashlib.sha1(blob).hexdigest()})
 
-        meta = build_meta(date, images, tables, all_changes, title)
-        scraper.apply_manual(meta)
-        if not is_clean(meta):
-            return {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],
-                    "reason": why(meta), "text": _norm(text)[:1200], "msg": msg}
-        if dry:
-            return {"status": "ok", "date": date, "groups": meta["groups_in_order"], "dry": True, "msg": msg}
+    meta = build_meta(date, images, tables, all_changes, title)
+    scraper.apply_manual(meta)
+    if not is_clean(meta):
+        return {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],
+                "reason": why(meta), "text": _norm(text)[:1200]}
+    if dry:
+        return {"status": "ok", "date": date, "groups": meta["groups_in_order"], "dry": True}
 
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for img, p in zip(images, files):
-            scraper.write_atomic(out_dir / img["file"], p.read_bytes())
-        scraper.write_atomic(meta_path, json.dumps(meta, ensure_ascii=False, indent=1))
-        scraper.write_index(out_dir)
-        return {"status": "ok", "date": date, "groups": meta["groups_in_order"],
-                "files": [i["file"] for i in images], "msg": msg}
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for img, p in zip(images, files):
+        scraper.write_atomic(out_dir / img["file"], p.read_bytes())
+    scraper.write_atomic(meta_path, json.dumps(meta, ensure_ascii=False, indent=1))
+    scraper.write_index(out_dir)
+    return {"status": "ok", "date": date, "groups": meta["groups_in_order"],
+            "files": [i["file"] for i in images]}
 
 
-# ---------- задача и отчёт ----------
+def download(url, dest):
+    """Скачать фото сообщения ВК."""
+    r = requests.get(url, timeout=60, headers=scraper.UA)
+    r.raise_for_status()
+    dest.write_bytes(r.content)
+    return dest
+
+
+def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
+    """Разобрать фото, присланные ботом в data/vk-incoming/.
+
+    Вызывается из ежечасной проверки сайта (scraper.py) — до обращения к сайту техникума:
+    если тот лежит, распоряжение из беседы всё равно попадёт на сайт.
+    """
+    data_dir = Path(data_dir) if data_dir else scraper.DATA
+    out_dir = Path(out_dir) if out_dir else scraper.OUT_DIR
+    incoming = data_dir / INCOMING
+    if not incoming.is_dir():
+        return []
+    results = []
+    for path in sorted(incoming.iterdir()):
+        if path.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+            continue
+        msg = path.stem
+        try:
+            res = publish([path], out_dir=out_dir, today=today, log=log)
+        except Exception as e:
+            res = {"status": "error", "error": str(e)[:300]}
+        res["msg"] = msg
+        results.append(res)
+        log("замена из беседы ВК (%s): %s%s" % (msg, res.get("status"),
+                                               (" за " + res["date"]) if res.get("date") else ""))
+        # картинка разобрана — убрать её, чтобы не попала в сайт и не повторялась
+        try:
+            path.unlink()
+        except OSError:
+            pass
+    if results:
+        write_result(results[-1], data_dir)
+    return results
+
+
+def write_result(res, data_dir=None):
+    """data/vk-result.json — что получилось; бот читает его и пишет владельцу в личку."""
+    data_dir = Path(data_dir) if data_dir else scraper.DATA
+    res = {k: v for k, v in res.items() if k != "meta"}
+    res["at"] = dt.datetime.now(scraper.TZ).isoformat(timespec="minutes")
+    path = data_dir / "vk-result.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    scraper.write_atomic(path, json.dumps(res, ensure_ascii=False, indent=1))
+    return path
+
 
 def open_issue(date, groups, reason_text, text, log=print):
     """Задача в GitHub: распозналось сомнительно — пусть посмотрит человек."""
@@ -286,17 +326,6 @@ def open_issue(date, groups, reason_text, text, log=print):
     return r.json().get("number")
 
 
-def write_result(res, data_dir=None):
-    """data/vk-result.json — что получилось; бот читает его и пишет владельцу в личку."""
-    data_dir = Path(data_dir) if data_dir else scraper.DATA
-    res = {k: v for k, v in res.items() if k != "meta"}
-    res["at"] = dt.datetime.now(scraper.TZ).isoformat(timespec="minutes")
-    path = data_dir / "vk-result.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    scraper.write_atomic(path, json.dumps(res, ensure_ascii=False, indent=1))
-    return path
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", help="ссылки на фото распоряжения из беседы ВК (через запятую)")
@@ -304,16 +333,25 @@ def main():
     ap.add_argument("--msg", default="", help="номер сообщения ВК — для отчёта")
     ap.add_argument("--dry", action="store_true", help="только показать, что получилось, ничего не писать")
     args = ap.parse_args()
-    urls = [u for u in (args.url or "").split(",") if u.strip()]
-    if args.file:
-        urls = [args.file]
-    if not urls:
-        print("нужен --url или --file")
-        return 2
+    tmpdir = tempfile.mkdtemp(prefix="vkzam")
     try:
-        res = process(urls, msg=args.msg, dry=args.dry)
+        if args.file:
+            files = [Path(args.file)]
+        else:
+            files = []
+            for i, u in enumerate([x for x in (args.url or "").split(",") if x.strip()][:MAX_PHOTOS], 1):
+                p = Path(tmpdir) / ("photo%d.png" % i)
+                download(u.strip(), p)
+                files.append(p)
+        if not files:
+            print("нужен --url или --file")
+            return 2
+        res = publish(files, dry=args.dry)
     except Exception as e:
-        res = {"status": "error", "error": str(e)[:300], "msg": args.msg}
+        res = {"status": "error", "error": str(e)[:300]}
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    res["msg"] = args.msg
     print("итог: " + json.dumps(res, ensure_ascii=False))
     if res.get("status") in ("uncertain", "no_date", "error") and not args.dry:
         try:
@@ -325,7 +363,6 @@ def main():
                 print("открыта задача #" + str(n))
         except Exception as e:
             print("задачу не открыть: " + str(e))
-    if not args.dry:
         try:
             write_result(res)
         except Exception as e:
