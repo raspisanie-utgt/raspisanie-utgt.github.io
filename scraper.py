@@ -717,6 +717,14 @@ def main():
         print(json.dumps(t, ensure_ascii=False, indent=1))
         return 0
 
+    # замены, присланные в беседу ВК (data/vk-incoming/) — разбираем до обращения к сайту техникума:
+    # если тот лежит, распоряжение из беседы всё равно попадёт на сайт
+    try:
+        import vk_zamena
+        vk_zamena.process_incoming()
+    except Exception as e:  # noqa: BLE001
+        print(f"замены из беседы ВК не разобраны: {e!r}", file=sys.stderr)
+
     session = requests.Session()
     if args.html:
         html = Path(args.html).read_text(encoding="utf-8")
