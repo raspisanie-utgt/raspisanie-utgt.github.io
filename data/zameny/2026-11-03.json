@@ -1,0 +1,117 @@
+{
+ "date": "2026-11-03",
+ "group": "11-А",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-11-05T10:30+03:00",
+ "first_seen": "2026-11-05T10:30+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": null,
+   "file": "2026-11-03-1.png",
+   "sha1": "546afe02f6b1041a2efe176fc2caf468a4ef9ca4"
+  }
+ ],
+ "title": "Вторник, 1-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": true,
+ "ocr_group_doubt": false,
+ "manual": "добавлено вручную с картинки распоряжения из группы ВК (сайт техникума не открывался)",
+ "groups_in_order": [
+  "11-В",
+  "31-П",
+  "31-Д",
+  "31-А",
+  "41-П",
+  "41-А"
+ ],
+ "changes": [],
+ "all_changes": {
+  "11-В": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Биология",
+    "room": "",
+    "uncertain": true
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Контроль технического состояния и устройств железнодорожного пути",
+    "room": "2-12",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Экономика, организация и планирование в путевом хозяйстве",
+    "room": "2-12",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Экономика организации",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ]
+ }
+}

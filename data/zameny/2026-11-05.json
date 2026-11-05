@@ -1,0 +1,299 @@
+{
+ "date": "2026-11-05",
+ "group": "11-А",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-11-05T10:30+03:00",
+ "first_seen": "2026-11-05T10:30+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": null,
+   "file": "2026-11-05-1.png",
+   "sha1": "3bbf4fa6620d64b62650456b56b4b7b668e9f9c2"
+  }
+ ],
+ "title": "Четверг, 1-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": true,
+ "ocr_group_doubt": false,
+ "manual": "добавлено вручную с картинки распоряжения из группы ВК (сайт техникума не открывался)",
+ "groups_in_order": [
+  "11-П",
+  "11-Д",
+  "11-А",
+  "11-С",
+  "11-В",
+  "11-Л",
+  "21-Д",
+  "21-А",
+  "21-С",
+  "31-П",
+  "31-Д",
+  "31-А",
+  "31-С",
+  "41-А",
+  "41-С"
+ ],
+ "changes": [
+  {
+   "lessons": [
+    7,
+    8
+   ],
+   "time": null,
+   "subject": "Иностранный язык (немецкий)",
+   "room": "1-14",
+   "uncertain": false
+  }
+ ],
+ "all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий) / География",
+    "room": "1-14/2-7",
+    "uncertain": false
+   }
+  ],
+  "11-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-А": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-С": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-В": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "21-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык в профессиональной деятельности (английский)",
+    "room": "2-15",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технология рем.-регулировочных работ устройств и приборов систем железнодорожной автоматики и телемеханики",
+    "room": "1-10",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Иностранный язык в профессиональной деятельности (английский)",
+    "room": "2-15",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.02.02 Техническая эксплуатация железных дорог и безопасность движения",
+    "room": "1-15",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технология рем.-регулировочных работ устройств и приборов систем железнодорожной автоматики и телемеханики",
+    "room": "1-10",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Безопасность жизнедеятельности",
+    "room": "1-3",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Экономика организации",
+    "room": "1-28",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.01.03 Теоретические основы построения и эксплуатации микропроц. и диагност. систем автоматики",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Планирование и организация работы структурного подразделения",
+    "room": "1-28",
+    "uncertain": false
+   }
+  ]
+ }
+}
