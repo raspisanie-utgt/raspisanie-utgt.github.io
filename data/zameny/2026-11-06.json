@@ -1,0 +1,217 @@
+{
+ "date": "2026-11-06",
+ "group": "11-А",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-11-05T21:15+03:00",
+ "first_seen": "2026-11-05T21:15+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": null,
+   "file": "2026-11-06-1.png",
+   "sha1": "e061fa2481f90a8d6d3848d6f7fef56439ae132e"
+  }
+ ],
+ "title": "Пятница, 1-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": false,
+ "ocr_group_doubt": false,
+ "manual": "добавлено вручную с картинки распоряжения из группы ВК (сайт техникума не открывался)",
+ "groups_in_order": [
+  "11-П",
+  "11-А",
+  "11-С",
+  "11-Л",
+  "21-С",
+  "21-Л",
+  "31-П",
+  "31-С",
+  "41-П",
+  "41-А",
+  "41-С"
+ ],
+ "changes": [
+  {
+   "lessons": [
+    7,
+    8
+   ],
+   "time": null,
+   "subject": "География",
+   "room": "2-7",
+   "uncertain": false
+  }
+ ],
+ "all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-А": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "География",
+    "room": "2-7",
+    "uncertain": false
+   }
+  ],
+  "11-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Иностранный язык в профессиональной деятельности (английский)",
+    "room": "2-15",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Физика",
+    "room": "2-5",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Основы финансовой грамотности",
+    "room": "1-28",
+    "uncertain": false
+   }
+  ],
+  "21-Л": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Прикладная математика",
+    "room": "2-5",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Основы финансовой грамотности",
+    "room": "1-28",
+    "uncertain": false
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "МДК.01.02 Теоретические основы построения и эксплуатации перегонных систем железнодорожной автоматики",
+    "room": "1-10",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технологии программирования, инсталляции и ввода в действие транспорт. радиоэлектрон. оборуд. (по видам тр.-та)",
+    "room": "1-30",
+    "uncertain": false
+   }
+  ]
+ }
+}
