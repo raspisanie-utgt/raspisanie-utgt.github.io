@@ -87,3 +87,17 @@ def test_broken_table_does_not_publish():
     meta = _meta(ocr_ok=False)
     assert not vk_zamena.is_clean(meta)
     assert vk_zamena.why(meta)
+
+
+def test_incoming_groups():
+    # страницы одного распоряжения — рядом: 123_1.png и 123_2.png разбираются вместе
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        for name in ("123_2.png", "123_1.png", "456_1.jpg", "заметка.txt"):
+            (d / name).write_bytes(b"x")
+        groups = vk_zamena.incoming_groups(d)
+    assert sorted(groups) == ["123", "456"]
+    assert [p.name for p in groups["123"]] == ["123_1.png", "123_2.png"]
+    assert [p.name for p in groups["456"]] == ["456_1.jpg"]
