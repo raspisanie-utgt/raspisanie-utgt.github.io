@@ -62,6 +62,9 @@
     return ((((weeks % 2) + 2) % 2) === 0) ? a.week : 3 - a.week;
   }
 
+  // Кабинеты составной пары разделены «/»; с пробелами («1-14 / 2-7») и без («1-14/2-7» — так бывает при распознавании картинки)
+  var ROOM_SPLIT = /\s*\/\s*/;
+
   // Номер части составной пары («английский / немецкий»), которую заменяет строка распоряжения, или -1.
   // Только для пар из нескольких частей: язык замены совпал с языком одной из частей или совпал сам предмет.
   function part(oldSubject, subject) {
@@ -114,13 +117,13 @@
           // пара у двух языковых подгрупп («английский / немецкий»), замена — у одной: меняем только её часть,
           // вторая подгруппа остаётся со своей парой, преподавателем и кабинетом
           var k = part(old.subject, c.subject), sp = old.subject.split(" / "), tp = String(old.teacher || "").split(" / "),
-            rp = String(old.room || "").split(" / ");
+            rp = String(old.room || "").split(ROOM_SPLIT);
           var same1 = sp[k] === c.subject;
           sp[k] = c.subject;
           if (!same1) tp[k] = "";
           if (c.room) rp[k] = c.room;
           byLesson[n] = Object.assign({}, old, { subject: sp.join(" / "), teacher: tp.join(" / "), room: rp.join(" / "),
-            block: "z" + i, changed: !(same1 && (!c.room || c.room === String(old.room).split(" / ")[k])), uncertain: c.uncertain });
+            block: "z" + i, changed: !(same1 && (!c.room || c.room === String(old.room).split(ROOM_SPLIT)[k])), uncertain: c.uncertain });
         } else {
           var same = old && old.subject === c.subject;
           byLesson[n] = {
@@ -213,7 +216,7 @@
     var items = [];
     agenda.items.forEach(function (it) {
       var subj = String(it.subject).split(" / "), teach = String(it.teacher || "").split(" / "),
-        rooms = String(it.room || "").split(" / ");
+        rooms = String(it.room || "").split(ROOM_SPLIT);
       var keep = subj.map(function (s, i) { return i; }).filter(function (i) {
         var l = langOf(subj[i]);
         return !lang || !l || l === lang;
