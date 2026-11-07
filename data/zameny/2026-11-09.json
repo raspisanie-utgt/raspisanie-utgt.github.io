@@ -1,0 +1,424 @@
+{
+ "date": "2026-11-09",
+ "group": "11-А",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-11-07T11:05+03:00",
+ "first_seen": "2026-11-07T11:05+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": null,
+   "file": "2026-11-09-1.png",
+   "sha1": "f8fb17657786eca779627fdf061892c80ae77f69"
+  }
+ ],
+ "title": "Понедельник, 2-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": false,
+ "ocr_group_doubt": false,
+ "manual": "добавлено вручную с картинки распоряжения №67 из группы ВК (сайт техникума не открывался)",
+ "groups_in_order": [
+  "11-П",
+  "11-Д",
+  "11-А",
+  "11-С",
+  "11-В",
+  "11-Л",
+  "21-П",
+  "21-Д",
+  "21-А",
+  "21-С",
+  "21-Л",
+  "31-П",
+  "31-Д",
+  "31-А",
+  "31-С",
+  "41-П",
+  "41-А",
+  "41-С"
+ ],
+ "changes": [
+  {
+   "lessons": [
+    0
+   ],
+   "time": "08:30",
+   "subject": "Разговоры о важном",
+   "room": "1-25",
+   "uncertain": false
+  }
+ ],
+ "all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-Д": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-А": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "1-25",
+    "uncertain": false
+   }
+  ],
+  "11-С": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык в профессиональной деятельности (английский)",
+    "room": "2-15",
+    "uncertain": false
+   }
+  ],
+  "11-В": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "1-3",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Физика",
+    "room": "2-5",
+    "uncertain": false
+   }
+  ],
+  "21-П": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "акт. зал",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Электротехника и электроника",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "21-Д": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "1-28",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "1-10",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Электрические измерения",
+    "room": "1-14",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-Л": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Электротехника",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "2-7",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "1-31",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.01.03 Автоматизированные системы управления на транспорте (по видам транспорта)",
+    "room": "1-15",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [],
+    "time": "14:50",
+    "subject": "Разговоры о важном",
+    "room": "1-10",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Разговоры о важном",
+    "room": "1-24",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Иностранный язык в профессиональной деятельности (немецкий/английский)",
+    "room": "1-28 / 2-15",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6,
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     0
+    ],
+    "time": "08:30",
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ]
+ }
+}
