@@ -321,6 +321,36 @@ def test_manual_corrections_survive_and_expire(tmp_path):
     assert "перезалила" in (tmp_path / "n.txt").read_text(encoding="utf-8")
 
 
+def test_manual_zamena_is_not_overwritten(tmp_path):
+    """Файл замен, сверенный вручную, автоматика не перезаписывает — и картинку тоже."""
+    meta = {"date": "2026-11-03", "manual": "сверено с распоряжением", "images": [{"sha1": "aaa"}],
+            "all_changes": {"11-А": [{"lessons": [1, 2], "subject": "Математика", "room": "1-8"}]}}
+    (tmp_path / "2026-11-03.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "2026-11-03-1.png").write_bytes(b"ручная картинка")
+
+    class Session:
+        def get(self, url, **kw):
+            raise AssertionError("картинку скачивать нельзя — замена ручная")
+
+    block = {"date": "2026-11-03", "section": "ochnoe", "images": ["https://utgt-pgups.ru/images/03.11.2026.png"]}
+    logs = []
+    assert not scraper.process_block(block, Session(), scraper.subject_vocab(), tmp_path, logs.append)
+    assert json.loads((tmp_path / "2026-11-03.json").read_text(encoding="utf-8")) == meta
+    assert (tmp_path / "2026-11-03-1.png").read_bytes() == b"ручная картинка"
+    assert "вручную" in " ".join(logs)
+
+
+def test_reprocess_skips_manual_zamena(tmp_path):
+    """Перераспознавание тоже не трогает сверенные вручную замены."""
+    meta = {"date": "2026-11-03", "manual": True, "images": [{"sha1": "a", "file": "2026-11-03-1.png"}],
+            "all_changes": {}}
+    (tmp_path / "2026-11-03.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    logs = []
+    scraper.reprocess(tmp_path, vocab={"Математика": 1}, log=logs.append)
+    assert json.loads((tmp_path / "2026-11-03.json").read_text(encoding="utf-8")) == meta
+    assert "вручную" in " ".join(logs)
+
+
 def test_section_words():
     """«Срочно», «досрочно» — не очное отделение; «очное», «заочного» — да."""
     html = """<div itemprop="articleBody"><p>на 3 ноября 2026 года заочное отделение</p><img src="/i/z1.png">

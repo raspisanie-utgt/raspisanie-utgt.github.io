@@ -33,3 +33,22 @@ def test_every_11A_teacher_has_full_name():
     for day in sched["days"].values():
         for e in day:
             assert not e["teacher"] or e["teacher"] in by_short, e["teacher"]
+
+
+def test_manual_names_file(tmp_path):
+    p = tmp_path / "teachers_manual.json"
+    p.write_text(json.dumps({"Иванов И.И.": "Иванов Иван Иванович"}, ensure_ascii=False), encoding="utf-8")
+    assert T.manual_names(p) == {"Иванов И.И.": "Иванов Иван Иванович"}
+    assert T.manual_names(tmp_path / "нет-такого.json") == {}
+
+
+def test_manual_teacher_survives_automatic_update():
+    """Ручные правки (data/teachers_manual.json) накладываются поверх автоматических и их не затирает обновление."""
+    manual = T.manual_names()
+    assert manual["Топчий О.В."] == "Топчий Оксана Владимировна"
+    # что было в педсоставе — перетирается ручной записью
+    merged = T.apply_manual({"Топчий О.В.": "Топчий Оксана Олеговна"}, manual)
+    assert merged["Топчий О.В."] == "Топчий Оксана Владимировна"
+    # и в data/teachers.json то же имя, что и в ручном файле
+    live = json.loads((ROOT / "data" / "teachers.json").read_text(encoding="utf-8"))["by_short"]
+    assert live["Топчий О.В."] == manual["Топчий О.В."]

@@ -16,3 +16,13 @@ def test_schedules_have_no_errors():
 def test_typo_detector_finds_letter_swaps():
     assert check_data.typo_words(["Безопасность жизнедеятельности", "Техническая безопансость"]) == [
         ("безопансость", "безопасность")]
+
+
+def test_room_ok_two_rooms_and_auditorium():
+    """Два кабинета через «/» (с пробелами и без) и «акт. зал» — нормальные значения."""
+    assert check_data.room_ok("1-28 / 2-15")
+    assert check_data.room_ok("1-14/2-7")
+    assert check_data.room_ok("акт. зал")
+    assert check_data.room_ok("2-7")
+    assert not check_data.room_ok("1-28 / 2-15 / аудитория")
+    assert not check_data.room_ok("1-28 / 2-15 / ???")

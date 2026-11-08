@@ -604,6 +604,10 @@ def process_block(block, session, vocab, out_dir=OUT_DIR, log=print):
     out_dir.mkdir(parents=True, exist_ok=True)
     meta_path = out_dir / f"{date}.json"
     old = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else None
+    if old and old.get("manual"):
+        # замена сверена человеком с распоряжения — автоматика её не трогает (и картинку тоже)
+        log(f"{date}: замена сверена вручную — не перезаписываю")
+        return False
 
     images, blobs = [], []
     for i, url in enumerate(block["images"], 1):
@@ -659,6 +663,9 @@ def reprocess(out_dir=OUT_DIR, vocab=None, log=print):
     vocab = vocab or subject_vocab()
     for path in sorted(out_dir.glob("????-??-??.json")):
         meta = json.loads(path.read_text(encoding="utf-8"))
+        if meta.get("manual"):
+            log(f"{meta['date']}: замена сверена вручную — не трогаю")
+            continue
         if not meta["images"]:
             continue
         tables = []

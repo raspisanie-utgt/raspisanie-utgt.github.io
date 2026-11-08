@@ -24,6 +24,7 @@ from bs4 import BeautifulSoup
 PAGE = "https://utgt-pgups.ru/svedeniya/pedagogicheskiy-sostav.html"
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "teachers.json"
+MANUAL = ROOT / "data" / "teachers_manual.json"
 FULL_RE = re.compile(r"([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?)\s+([А-ЯЁ][а-яё]+)\s+"
                      r"([А-ЯЁ][а-яё]+(?:вич|вна|ична|чна|оглы|кызы))")
 SHORT_RE = re.compile(r"^([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?)\s([А-ЯЁ])\.\s?([А-ЯЁ])\.?$")
@@ -77,6 +78,27 @@ def schedule_teachers():
     return sorted(names)
 
 
+def manual_names(path=MANUAL):
+    """Ручные правки: «Фамилия И.О.» -> полное ФИО (data/teachers_manual.json).
+
+    Их не затирает автоматическое обновление: в PDF педсостава этих преподавателей нет
+    или имя там другое, а в расписании — как надо."""
+    if not Path(path).exists():
+        return {}
+    try:
+        return {k: v for k, v in json.loads(Path(path).read_text(encoding="utf-8")).items() if v}
+    except ValueError:
+        print(f"НЕ ЧИТАЕТСЯ {path} — оставляю как есть", file=sys.stderr)
+        return {}
+
+
+def apply_manual(by_short, manual=None):
+    """Ручные записи — поверх автоматических."""
+    if manual is None:
+        manual = manual_names()
+    return {**by_short, **manual}
+
+
 def pdf_url():
     r = requests.get(PAGE, timeout=60, headers=UA)
     r.raise_for_status()
@@ -109,6 +131,7 @@ def main():
               file=sys.stderr)
         return 1
     by_short = {s: f for s in schedule_teachers() if (f := match(s, full))}
+    by_short = apply_manual(by_short)
     missing = [s for s in schedule_teachers() if s not in by_short]
     OUT.write_text(json.dumps({"source": PAGE, "pdf": source if source.startswith("http") else "",
                                "teachers": full, "by_short": by_short}, ensure_ascii=False, indent=1),

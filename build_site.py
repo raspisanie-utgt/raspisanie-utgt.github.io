@@ -113,14 +113,19 @@ def build(out=ROOT / "_site", scrape_ok=True):
     app = out / "app.js"
     app.write_text(app.read_text(encoding="utf-8").replace("SNAKE_V", '"' + snake + '"'), encoding="utf-8")
     bust_cache(out)
-    # версия кэша для работы без интернета: меняется только при изменении самого сайта (site/),
-    # а не данных каждый час — иначе телефон при каждом заходе заново скачивал бы в фоне всё целиком
-    # (данные и так берутся из сети и сохраняются при каждом открытии)
+    # версия кэша для работы без интернета: меняется только при изменении самого сайта (site/)
+    # и данных, которые телефон читает офлайн, — а не данных каждый час: иначе телефон при каждом
+    # заходе заново скачивал бы в фоне всё целиком (новости и замены берутся из сети и сохраняются
+    # при каждом открытии, а список преподавателей и кабинеты — надолго)
     digest = hashlib.sha1()
     for f in sorted((ROOT / "site").rglob("*")):
         if f.is_file() and f.name != "sw.js":
             digest.update(f.name.encode()); digest.update(f.read_bytes())
     digest.update((ROOT / "site" / "sw.js").read_bytes())
+    for name in ("data/teachers.json", "data/rooms.json", "data/info.json"):
+        p = ROOT / name
+        if p.exists():
+            digest.update(name.encode()); digest.update(p.read_bytes())
     sw = out / "sw.js"
     sw.write_text(sw.read_text(encoding="utf-8").replace("__BUILD__", digest.hexdigest()[:10]), encoding="utf-8")
     status = {"checked_at": dt.datetime.now(ZoneInfo("Europe/Moscow")).isoformat(timespec="minutes"),

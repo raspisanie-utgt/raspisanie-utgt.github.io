@@ -20,6 +20,8 @@ DATA = ROOT / "data"
 ROOM_RE = re.compile(r"^([12]-(\d{1,2}[А-ЯЁ]?|\?)|\?)$")  # «2-1Е» — есть такой; «?» / «2-?» — кабинет на уточнении
 # кабинеты без номера (если появятся) — из data/rooms.json
 NAMED_ROOMS = set(json.loads((ROOT / "data" / "rooms.json").read_text(encoding="utf-8")).get("rooms", {}))
+# кабинеты без номера корпуса: «акт. зал» — обычное значение в распоряжениях
+EXTRA_ROOMS = {"акт. зал"}
 TEACHER_RE = re.compile(r"^[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)? [А-ЯЁ]\.[А-ЯЁ]\.$")
 DAYS = {"1": "пн", "2": "вт", "3": "ср", "4": "чт", "5": "пт", "6": "сб"}
 
@@ -31,6 +33,16 @@ def load_groups():
 
 def parts(e, key):
     return [x.strip() for x in str(e.get(key) or "").split(" / ")]
+
+
+def room_parts(room):
+    """Кабинеты одной пары: «2-15 / 1-14» и «1-14/2-7» (без пробелов) — это два кабинета."""
+    return [x.strip() for x in re.split(r"\s*/\s*", str(room or ""))]
+
+
+def room_ok(room):
+    """Кабинет верный, если каждая его часть — номер кабинета или название без номера («акт. зал»)."""
+    return all(ROOM_RE.match(p) or p in NAMED_ROOMS or p in EXTRA_ROOMS for p in room_parts(room))
 
 
 def words(s):
@@ -82,9 +94,9 @@ def check_schedules(groups, staff):
                         if (n, w) in taken:
                             errors.append(f"{where}: накладка с «{taken[(n, w)]}»")
                         taken[(n, w)] = e["subject"]
-                subj, teach, rooms = parts(e, "subject"), parts(e, "teacher"), parts(e, "room")
+                subj, teach, rooms = parts(e, "subject"), parts(e, "teacher"), room_parts(e.get("room"))
                 for r in rooms:
-                    if not ROOM_RE.match(r):
+                    if not (ROOM_RE.match(r) or r in NAMED_ROOMS or r in EXTRA_ROOMS):
                         errors.append(f"{where}: странный кабинет «{r}»")
                 for t in teach:
                     if not TEACHER_RE.match(t):
@@ -148,7 +160,7 @@ def check_zameny(groups, subjects):
             if g == "?":
                 warnings.append(f"замены {d}: {len(rows)} строк без распознанной группы")
             for r in rows:
-                if r.get("room") and not ROOM_RE.match(r["room"]) and r["room"] not in NAMED_ROOMS:
+                if r.get("room") and not room_ok(r["room"]):
                     warnings.append(f"замены {d} {g}: странный кабинет «{r['room']}»")
                 if r.get("uncertain"):
                     warnings.append(f"замены {d} {g}: распознано неуверенно — «{r['subject']}»")
