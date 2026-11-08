@@ -326,7 +326,7 @@ def test_manual_zamena_is_not_overwritten(tmp_path):
     meta = {"date": "2026-11-03", "manual": "сверено с распоряжением", "images": [{"sha1": "aaa"}],
             "all_changes": {"11-А": [{"lessons": [1, 2], "subject": "Математика", "room": "1-8"}]}}
     (tmp_path / "2026-11-03.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
-    (tmp_path / "2026-11-03-1.png").write_bytes(b"ручная картинка")
+    (tmp_path / "2026-11-03-1.png").write_bytes("ручная картинка".encode())
 
     class Session:
         def get(self, url, **kw):
@@ -336,7 +336,7 @@ def test_manual_zamena_is_not_overwritten(tmp_path):
     logs = []
     assert not scraper.process_block(block, Session(), scraper.subject_vocab(), tmp_path, logs.append)
     assert json.loads((tmp_path / "2026-11-03.json").read_text(encoding="utf-8")) == meta
-    assert (tmp_path / "2026-11-03-1.png").read_bytes() == b"ручная картинка"
+    assert (tmp_path / "2026-11-03-1.png").read_bytes() == "ручная картинка".encode()
     assert "вручную" in " ".join(logs)
 
 
