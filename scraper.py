@@ -328,13 +328,29 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
             c = ImageOps.expand(c, border=c.height // 2, fill=255)
         return _tesseract(c, psm, lang, extra), dark
 
+    # горизонтальные линии только в столбце групп: у объединённой ячейки («11-Д» на две строки) между её строками
+    # линии нет, и название стоит посередине — построчное чтение режет его пополам
+    gcol = ink[hlines[0]:hlines[-1] + 1, vlines[0] + 3:vlines[1] - 2]
+    glines = [hlines[0] + (s + e) // 2 for s, e in _runs(gcol.mean(1) > 0.6)] if gcol.shape[1] > 4 else []
+
+    def group_span(y0, y1):
+        a = max([y for y in glines if y <= y0 + 3], default=y0)
+        b = min([y for y in glines if y >= y1 - 3], default=y1)
+        return (a, b) if b - a > 1.5 * (y1 - y0) else (y0, y1)
+
     title, rows, in_table, group, group_doubt = "", [], continued, None, False
     group_sure = True  # группа текущего блока прочитана уверенно — следующие строки блока наследуют это
     for y0, y1 in zip(hlines, hlines[1:]):
         if y1 - y0 < 8:
             continue
         texts = [cell(x0, x1, y0, y1, 6 if i == 2 else 7) for i, (x0, x1) in enumerate(zip(vlines, vlines[1:]))]
+        gy0, gy1 = group_span(y0, y1)
+        if in_table and (gy0, gy1) != (y0, y1):
+            # объединённая ячейка группы: читаем её целиком на первой строке, на следующих строках группа та же
+            texts[0] = cell(vlines[0], vlines[1], gy0, gy1, 7) if abs(y0 - gy0) <= 4 else ("", 0)
         raw = [t for t, _ in texts]
+        if in_table and not any(raw) and all(d < 0.004 for _, d in texts):
+            continue  # пустая строка (хвост у обрезанного снизу снимка) — не строка таблицы
         joined = " ".join(raw).lower()
         header = "урок" in joined and ("групп" in joined or "трупп" in joined)
         if not in_table or header or ("недел" in joined and not re.search(r"\d", raw[1] if len(raw) > 1 else "")):
@@ -348,7 +364,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
         g_ink = g_dark >= 0.004  # в ячейке группы что-то есть (даже если прочиталась пустота)
         if g_ink:
             # ещё два чтения с белым полем; группа — за которую большинство настоящих прочтений
-            reads = [g_text] + [cell(vlines[0], vlines[1], y0, y1, 7, k, pad=True)[0] for k in (4, 5)]
+            reads = [g_text] + [cell(vlines[0], vlines[1], gy0, gy1, 7, k, pad=True)[0] for k in (4, 5)]
             g_text = " ".join(r for r in reads if r)
             known = [n for n, ok in map(normalize_group, reads) if n and ok]
             best, sure = _vote(known)
@@ -357,7 +373,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
             for k in (3, 5, 2):  # ничего не прочиталось как группа — пробуем другой масштаб
                 if g and g_ok:
                     break
-                g2, ok2 = normalize_group(cell(vlines[0], vlines[1], y0, y1, 7, k)[0])
+                g2, ok2 = normalize_group(cell(vlines[0], vlines[1], gy0, gy1, 7, k)[0])
                 if g2 and (ok2 or not g):
                     g, g_ok = g2, ok2
         row_uncertain = False
@@ -378,7 +394,10 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
             lesson_reads += [cell(vlines[1], vlines[2], y0, y1, 7, k, pad=True, lang=lang, extra=extra)[0]
                              for k, lang, extra in ((5, "eng", DIGITS), (3, "eng", DIGITS), (4, "rus", DIGITS), (4, "rus", ()))]
         parsed = [(tuple(l), t) for l, t in map(parse_lessons, lesson_reads)]
-        best, lessons_sure = _vote([p for p in parsed if p[0] or p[1]])
+        got = [p for p in parsed if p[0] or p[1]]
+        best, lessons_sure = _vote(got)
+        if len(got) < VOTE_SHARE * len(parsed):
+            lessons_sure = False  # большинство чтений вообще ничего не прочитало — одно чтение не доказательство
         lessons, time = (list(best[0]), best[1]) if best else ([], None)
         if best and not lessons_sure:
             row_uncertain = True
