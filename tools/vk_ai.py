@@ -6,7 +6,11 @@ import os
 import re
 from dataclasses import dataclass
 
-DEFAULT_MODELS = ("google/gemma-4-31b-it:free", "nvidia/nemotron-3.5-super-vl:free")
+DEFAULT_MODELS = (
+    "nvidia/nemotron-3.5-super-vl:free",
+    "dots-studio/dots-3-note-preview:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+)
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_TOKENS = 8000
 TIME = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
