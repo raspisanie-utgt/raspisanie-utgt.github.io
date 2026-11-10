@@ -55,3 +55,26 @@ def test_corrected_order_overwrites(tmp_path):
     archive.update(z, a, log=logs.append)
     assert logs == ["архив: 2026-10-27 обновлён"]
     assert "2-99" in archive.show("11-Л", "2026-10-27", None, a)
+
+
+def test_archive_jpeg_from_colored_photo(tmp_path):
+    """Распоряжение №69 было JPG: палитровая картинка не сохранялась как JPEG."""
+    from PIL import Image
+    z = tmp_path / "zameny"
+    z.mkdir()
+    date = "2026-11-11"
+    photo = z / (date + "-1.jpg")
+    Image.new("RGB", (240, 320), (240, 235, 220)).save(photo, "JPEG")
+    meta = {"date": date, "title": "Среда, 2-я неделя", "images": [{"file": photo.name}],
+            "po_raspisaniyu": False, "ocr_ok": True, "ocr_uncertain": False,
+            "all_changes": {"11-А": [{"lessons": [3, 4], "subject": "Отменить", "room": "",
+                                        "time": None, "uncertain": False}]}}
+    (z / (date + ".json")).write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    archive_dir = tmp_path / "archive"
+    archive.update(z, archive_dir, log=lambda *_: None)
+    target = archive_dir / "img" / photo.name
+    assert target.exists()
+    with Image.open(target) as stored:
+        assert stored.format == "JPEG"
+        assert stored.size == (240, 320)
+    assert date in archive.load_all(archive_dir)

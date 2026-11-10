@@ -31,7 +31,11 @@
   display: flex; gap: 6px;
 }
 .desk .tabs button:not(.strip) { display: none; }
-.desk .desk-bar .tabs { overflow: visible; }
+.desk .desk-bar .tabs {
+  min-width: 0; max-width: 100%; justify-self: stretch;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+}
+/* Не даём полосе дат перекрыть кнопку темы при промежуточной ширине окна. */
 .desk .tabs .strip {
   display: block; flex: 0 0 auto; width: 54px; padding: 5px 0; text-align: center; font-size: 13px; line-height: 1.25;
   border-radius: 10px; border: 0; background: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .85);

@@ -45,7 +45,14 @@ def write_month(path, days):
 
 
 def compress_image(src, dst):
-    Image.open(src).convert("L").quantize(16).save(dst, optimize=True)
+    # JPEG не поддерживает режим P (16 оттенков). Сохраняем JPEG в RGB,
+    # а PNG — в компактной палитре, сохраняя расширение из метаданных.
+    with Image.open(src) as original:
+        gray = original.convert("L").quantize(16)
+        if dst.suffix.lower() in (".jpg", ".jpeg"):
+            gray.convert("RGB").save(dst, format="JPEG", quality=78, optimize=True)
+        else:
+            gray.save(dst, format="PNG", optimize=True)
 
 
 def update(zameny=ZAMENY, archive=ARCHIVE, log=print):

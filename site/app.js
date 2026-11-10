@@ -105,7 +105,8 @@
     return Promise.all([
       getJSON("data/groups/index.json"),
       getJSON("data/bells.json"),
-      getJSON("data/zameny/index.json").catch(function () { return { days: [] }; }),
+      getJSON("data/zameny/index.json").then(function (index) { state.indexFailed = false; return index; },
+        function () { state.indexFailed = true; return { days: [] }; }),
       getJSON("status.json").catch(function () { return {}; }),
       getJSON("data/calendar.json").catch(function () { return {}; }),
       getJSON("data/news.json").catch(function () { return { items: [] }; }),
@@ -140,6 +141,7 @@
   // Замены на дату. Не загрузились (обрыв связи, нет сохранённой копии) — это не «замен нет»:
   // возвращаем отметку load_failed и не запоминаем её — при следующей перерисовке попробуем снова
   function zamenaFor(date) {
+    if (state.indexFailed) return Promise.resolve({ load_failed: true, ocr_ok: true, all_changes: {}, changes: [], images: [] });
     if (state.data.index.days.indexOf(date) < 0) return Promise.resolve(null);
     if (state.zamena[date] !== undefined) return Promise.resolve(state.zamena[date]);
     return getJSON("data/zameny/" + date + ".json").then(function (z) { state.zamena[date] = z; return z; }, function () {
@@ -232,7 +234,9 @@
     drawUseful(now);
     drawStrip(now);
     document.querySelectorAll(".tabs button").forEach(function (b) {
-      b.setAttribute("aria-selected", String(b.dataset.day === String(state.offset)));
+      var selected = b.dataset.day === String(state.offset);
+      b.setAttribute("aria-selected", String(selected));
+      b.tabIndex = selected ? 0 : -1;
     });
     scrollStrip();
     drawTomorrowDot(now);
@@ -252,7 +256,26 @@
       var ag = build(date, schedule, z);
       if (date === now.date) A.markNow(ag, now.minutes);
       draw(ag, z, date, schedule, now);
-    });
+    }).catch(function () { renderFailure(token); });
+  }
+
+  function renderFailure(token) {
+    if (outdated(token)) return;
+    clearTimeout(render.safety);
+    ["dayView", "weekView"].forEach(function (id) { $(id).classList.remove("pending"); });
+    hideNext();
+    $("list").removeAttribute("aria-busy");
+    $("list").innerHTML = '<div class="empty" role="alert">Расписание временно не загрузилось. Попробуйте ещё раз.</div>';
+    $("cancelled").hidden = true;
+    $("images").hidden = true;
+    $("base").hidden = true;
+    $("shareBtn").hidden = true;
+    $("weekView").innerHTML = '<div class="empty" role="alert">Расписание временно не загрузилось.</div>';
+    $("infoBtn").hidden = true;
+    var banner = $("banner");
+    banner.className = "banner warn";
+    banner.innerHTML = '<strong>Не удалось загрузить расписание</strong>Проверьте интернет. <button type="button" class="retry-data">Повторить</button>';
+    banner.hidden = false;
   }
 
   // Заголовок дня/недели: при смене — «печатается» по буквам за то же время, что появляются пары
@@ -332,9 +355,9 @@
             detHTML(it, [nice(it.subject) !== it.subject ? it.subject : "", who, it.was ? "Было по расписанию: " + nice(it.was) : ""].concat(roomPlaces(it.room))) + "</li>";
         }).join("") : '<li class="none">' + (ag.off ? esc(ag.off.reason) : "Занятий нет") + "</li>";
         return weekDayHTML(d, i, now, d === now.date ? ' <span class="tag state">сегодня</span>' : "", body, ag.items.length);
-      }).join("") + '<p class="hint">Замены показаны только на дни, на которые их уже опубликовали.</p>';
+      }).join("") + '<p class="hint">' + (state.indexFailed ? "Список замен временно недоступен — расписание может быть неполным." : "Замены показаны только на дни, на которые их уже опубликовали.") + "</p>";
       animIn($("weekView"));
-    });
+    }).catch(function () { renderFailure(token); });
   }
 
   // Неделя: нажатие на день раскрывает его — время до, номера уроков, полные названия и ФИО
@@ -849,8 +872,8 @@
     var banner = $("banner"), cls = "info", html, where = isDesk() ? "справа" : "ниже"; // где картинка распоряжения
     if (z && z.load_failed) {
       cls = "warn";
-      html = "<strong>Не удалось загрузить замены на этот день</strong>Показано обычное расписание. Проверьте интернет " +
-        "или посмотрите замены на сайте техникума.";
+      html = "<strong>Не удалось загрузить замены на этот день</strong>Показано обычное расписание, оно может быть неполным. " +
+        'Проверьте источник. <button type="button" class="retry-data">Повторить</button>';
     } else if (z) {
       if (z.po_raspisaniyu) {
         cls = "ok";
@@ -1396,8 +1419,8 @@
       }));
       if (d.z && d.z.load_failed) {
         cls = "warn";
-        html = "<strong>Не удалось загрузить замены на этот день</strong>Показано обычное расписание. Проверьте интернет " +
-          "или посмотрите замены на сайте техникума.";
+        html = '<strong>Не удалось загрузить замены на этот день</strong>Обычное расписание может быть неполным. ' +
+          'Проверьте источник. <button type="button" class="retry-data">Повторить</button>';
       } else if (d.z && !d.z.po_raspisaniyu && !d.z.ocr_ok) {
         cls = "warn";
         html = "<strong>Замены опубликованы, но таблицу распознать не удалось</strong>Посмотрите картинку " + where + ".";
@@ -1461,7 +1484,7 @@
       $("images").hidden = !z || !z.images.length;
       $("imageList").innerHTML = imagesHTML(z, date);
       drawStatus();
-    });
+    }).catch(function () { renderFailure(token); });
   }
 
   function renderTeacherWeek(now) {
@@ -1491,7 +1514,7 @@
             body, d.items.length);
         }).join("") + '<p class="hint">Замены учтены на дни, на которые их уже опубликовали.</p>';
       animIn($("weekView"));
-    });
+    }).catch(function () { renderFailure(token); });
   }
 
   function drawStatus() {
@@ -1694,9 +1717,41 @@
     if (!a || a.classList.contains("full-link")) return;
     e.preventDefault();
     var v = $("viewer");
-    $("viewerImg").src = a.getAttribute("href");
-    $("viewerImg").alt = (a.querySelector("img") || {}).alt || "Распоряжение о замене";
+    var image = $("viewerImg"), preview = a.querySelector("img");
+    var error = $("viewerError");
+    if (error) error.remove();
+    image.hidden = false;
+    image.dataset.original = a.getAttribute("href");
+    image.dataset.preview = preview ? preview.currentSrc || preview.src : "";
+    image.dataset.previewUsed = "";
+    image.src = image.dataset.original;
+    image.alt = (preview || {}).alt || "Распоряжение о замене";
     if (v.showModal) v.showModal(); else v.setAttribute("open", "");
+  });
+  $("viewerImg").addEventListener("error", function () {
+    var image = this, viewer = $("viewer");
+    var preview = image.dataset.preview;
+    if (!image.dataset.previewUsed && preview && preview !== image.src) {
+      image.dataset.previewUsed = "1";
+      image.src = preview;
+    } else image.hidden = true;
+    var message = $("viewerError");
+    if (!message) {
+      message = document.createElement("p");
+      message.id = "viewerError"; message.className = "viewer-error";
+      viewer.querySelector(".viewer-body").appendChild(message);
+    }
+    message.innerHTML = '<strong>Оригинал временно недоступен.</strong> ' +
+      (image.hidden ? "Проверьте интернет." : "Показано сохранённое превью.") +
+      ' <button type="button" id="viewerRetry">Повторить</button>';
+  });
+  $("viewer").addEventListener("click", function (e) {
+    if (e.target.id !== "viewerRetry") return;
+    var image = $("viewerImg");
+    image.hidden = false;
+    image.dataset.previewUsed = "";
+    $("viewerError").remove();
+    image.src = image.dataset.original + (image.dataset.original.includes("?") ? "&" : "?") + "retry=" + Date.now();
   });
   $("viewerClose").addEventListener("click", function () { $("viewer").close(); });
   $("viewer").addEventListener("click", function (e) { if (e.target === this || e.target.classList.contains("viewer-body")) this.close(); });
@@ -1780,6 +1835,11 @@
   });
   drawTheme(false);
 
+  $("banner").addEventListener("click", function (e) {
+    if (!e.target.closest(".retry-data")) return;
+    e.preventDefault();
+    load().then(function () { drawNews(); render(true); }, function () { renderFailure(render.token); });
+  });
   $("infoBtn").addEventListener("click", function () {
     state.infoOpen = $("banner").hidden;
     $("banner").hidden = !state.infoOpen;
@@ -1841,6 +1901,21 @@
     }, { passive: true });
   })();
 
+  document.querySelector(".tabs").addEventListener("keydown", function (e) {
+    if (["ArrowLeft", "ArrowRight", "Home", "End"].indexOf(e.key) < 0) return;
+    var tabs = Array.prototype.slice.call(this.querySelectorAll('button[role="tab"]'));
+    var i = tabs.indexOf(document.activeElement);
+    if (i < 0 || !tabs.length) return;
+    e.preventDefault();
+    var next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 :
+      (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    var day = tabs[next].dataset.day;
+    state.offset = day === "week" ? "week" : +day;
+    render(true);
+    var updated = Array.prototype.slice.call(this.querySelectorAll('button[role="tab"]')).filter(function (b) { return b.dataset.day === day; })[0];
+    if (updated) { updated.focus(); updated.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+  });
+
   document.querySelector(".tabs").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-day]");
     if (!b) return;
@@ -1899,7 +1974,10 @@
       (store(WHO_KEY) === "teacher" ? store(TEACHER_KEY) : store(STORE_KEY));
     setClock(now.time);
     drawStrip(now);
-    document.querySelectorAll(".tabs button").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.day === "0")); });
+    document.querySelectorAll(".tabs button").forEach(function (b) {
+      var active = b.dataset.day === "0";
+      b.setAttribute("aria-selected", String(active)); b.tabIndex = active ? 0 : -1;
+    });
     scrollStrip();
     if (who) { $("groupName").textContent = who; $("groupName").dataset.typed = who; }
     setTitle(A.humanDate(params.get("date") || now.date));
