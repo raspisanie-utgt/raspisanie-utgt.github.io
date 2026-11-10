@@ -1,10 +1,10 @@
 {
- "failures": 152,
+ "failures": 153,
  "failing": [
   "scrape",
   "news"
  ],
  "since": "2026-11-02T07:40+03:00",
- "last_check": "2026-11-10T08:42+03:00",
+ "last_check": "2026-11-10T09:46+03:00",
  "issue_open": true
 }
