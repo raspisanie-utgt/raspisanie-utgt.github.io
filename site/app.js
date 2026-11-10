@@ -1514,7 +1514,7 @@
             body, d.items.length);
         }).join("") + '<p class="hint">Замены учтены на дни, на которые их уже опубликовали.</p>';
       animIn($("weekView"));
-    });
+    }).catch(function () { renderFailure(token); });
   }
 
   function drawStatus() {
@@ -1717,9 +1717,41 @@
     if (!a || a.classList.contains("full-link")) return;
     e.preventDefault();
     var v = $("viewer");
-    $("viewerImg").src = a.getAttribute("href");
-    $("viewerImg").alt = (a.querySelector("img") || {}).alt || "Распоряжение о замене";
+    var image = $("viewerImg"), preview = a.querySelector("img");
+    var error = $("viewerError");
+    if (error) error.remove();
+    image.hidden = false;
+    image.dataset.original = a.getAttribute("href");
+    image.dataset.preview = preview ? preview.currentSrc || preview.src : "";
+    image.dataset.previewUsed = "";
+    image.src = image.dataset.original;
+    image.alt = (preview || {}).alt || "Распоряжение о замене";
     if (v.showModal) v.showModal(); else v.setAttribute("open", "");
+  });
+  $("viewerImg").addEventListener("error", function () {
+    var image = this, viewer = $("viewer");
+    var preview = image.dataset.preview;
+    if (!image.dataset.previewUsed && preview && preview !== image.src) {
+      image.dataset.previewUsed = "1";
+      image.src = preview;
+    } else image.hidden = true;
+    var message = $("viewerError");
+    if (!message) {
+      message = document.createElement("p");
+      message.id = "viewerError"; message.className = "viewer-error";
+      viewer.querySelector(".viewer-body").appendChild(message);
+    }
+    message.innerHTML = '<strong>Оригинал временно недоступен.</strong> ' +
+      (image.hidden ? "Проверьте интернет." : "Показано сохранённое превью.") +
+      ' <button type="button" id="viewerRetry">Повторить</button>';
+  });
+  $("viewer").addEventListener("click", function (e) {
+    if (e.target.id !== "viewerRetry") return;
+    var image = $("viewerImg");
+    image.hidden = false;
+    image.dataset.previewUsed = "";
+    $("viewerError").remove();
+    image.src = image.dataset.original + (image.dataset.original.includes("?") ? "&" : "?") + "retry=" + Date.now();
   });
   $("viewerClose").addEventListener("click", function () { $("viewer").close(); });
   $("viewer").addEventListener("click", function (e) { if (e.target === this || e.target.classList.contains("viewer-body")) this.close(); });
@@ -1868,6 +1900,21 @@
       render(dx < 0 ? "next" : "prev");
     }, { passive: true });
   })();
+
+  document.querySelector(".tabs").addEventListener("keydown", function (e) {
+    if (["ArrowLeft", "ArrowRight", "Home", "End"].indexOf(e.key) < 0) return;
+    var tabs = Array.prototype.slice.call(this.querySelectorAll('button[role="tab"]'));
+    var i = tabs.indexOf(document.activeElement);
+    if (i < 0 || !tabs.length) return;
+    e.preventDefault();
+    var next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 :
+      (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    var day = tabs[next].dataset.day;
+    state.offset = day === "week" ? "week" : +day;
+    render(true);
+    var updated = Array.prototype.slice.call(this.querySelectorAll('button[role="tab"]')).filter(function (b) { return b.dataset.day === day; })[0];
+    if (updated) { updated.focus(); updated.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+  });
 
   document.querySelector(".tabs").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-day]");
