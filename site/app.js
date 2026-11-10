@@ -1419,8 +1419,8 @@
       }));
       if (d.z && d.z.load_failed) {
         cls = "warn";
-        html = "<strong>Не удалось загрузить замены на этот день</strong>Показано обычное расписание. Проверьте интернет " +
-          "или посмотрите замены на сайте техникума.";
+        html = '<strong>Не удалось загрузить замены на этот день</strong>Обычное расписание может быть неполным. ' +
+          'Проверьте источник. <button type="button" class="retry-data">Повторить</button>';
       } else if (d.z && !d.z.po_raspisaniyu && !d.z.ocr_ok) {
         cls = "warn";
         html = "<strong>Замены опубликованы, но таблицу распознать не удалось</strong>Посмотрите картинку " + where + ".";
@@ -1484,7 +1484,7 @@
       $("images").hidden = !z || !z.images.length;
       $("imageList").innerHTML = imagesHTML(z, date);
       drawStatus();
-    });
+    }).catch(function () { renderFailure(token); });
   }
 
   function renderTeacherWeek(now) {
