@@ -93,6 +93,19 @@ class VisionTests(unittest.TestCase):
         self.assertEqual(answer, vk_ai.Reading("actual", "partial", False))
         self.assertEqual(post.call_args.kwargs["json"]["model"], "configured")
 
+    def test_date_fallback_requires_independent_agreement_in_range(self):
+        today = dt.date.fromisoformat(DATE)
+        def result(first, second):
+            with (patch.dict(os.environ, ENV, clear=True),
+                  patch.object(vk_ai, "_recognize", side_effect=[first, second])):
+                return vk_ai.suggest_date([], today)
+        first = vk_ai.Reading("one:free", DATE, True)
+        self.assertEqual(result(first, vk_ai.Reading("two", DATE, True))[0], DATE)
+        for other in (vk_ai.Reading("one", DATE, True), vk_ai.Reading("two", "2026-11-07", True),
+                      vk_ai.Reading("two", "2025-11-06", True), Timeout("internal")):
+            self.assertIsNone(result(first, other)[0])
+        self.assertIn("Timeout", result(first, Timeout("internal"))[1])
+
 
 class WorkflowTests(unittest.TestCase):
     def test_suggestion_cannot_publish_even_if_confirmed(self):
@@ -136,7 +149,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(len(list((root / "vk-review").glob("*/*.png"))), 3)
             vk_zamena.write_result({"status": "already", "msg": "10"}, root)
             batch = json.loads((root / "vk-results.json").read_text(encoding="utf-8"))["results"]
-            self.assertEqual([res["msg"] for res in batch], ["20", "10"])
+            self.assertEqual([res["msg"] for res in batch], ["10", "20", "10"])
 
     def test_keeps_photos_if_report_write_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -180,7 +193,7 @@ class WorkflowTests(unittest.TestCase):
             vk_zamena.write_result({"msg": "30", "status": "uncertain", "reason": reason * 8, "text": "кратко"}, root)
             legacy = json.loads((root / "vk-result.json").read_text(encoding="utf-8"))
             self.assertIn("vk-results.json", legacy["reason"])
-            self.assertEqual(vk_zamena.read_results(root)[0]["reason"], reason * 8)
+            self.assertEqual(vk_zamena.read_results(root)[-1]["reason"], reason * 8)
 
     def test_replayed_message_reuses_report_and_retries_archive(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -230,3 +243,72 @@ class WorkflowTests(unittest.TestCase):
                 ocr.assert_not_called()
                 request.assert_not_called()
             self.assertEqual(original.read_bytes(), b'{"manual":"checked","all_changes":{}}')
+
+    def test_missing_ocr_date_never_creates_schedule(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            with (patch.object(vk_zamena, "date_from_image", return_value=(None, "шапка")),
+                  patch.object(vk_ai, "suggest_date", return_value=(DATE, "две модели")),
+                  patch.object(vk_zamena.scraper, "ocr_table") as ocr):
+                result = vk_zamena.publish([folder / "photo.jpg"], out_dir=folder / "out")
+            self.assertEqual((result["status"], result["suggested_date"]), ("no_date", DATE))
+            self.assertIn("Нужна ручная проверка", result["reason"])
+            self.assertFalse((folder / "out").exists())
+            ocr.assert_not_called()
+
+    def test_confident_wrong_room_gets_checked_without_an_api_call_on_agreement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            photo = folder / "photo.jpg"
+            photo.write_bytes(b"photo")
+            row = {**ROW, "uncertain": False}
+            first = {"ok": True, "title": "", "rows": [row]}
+            second = {**first, "rows": [{**row, "room": "1-8"}]}
+            with (patch.object(vk_zamena, "date_from_image", return_value=(DATE, "")),
+                  patch.multiple(vk_zamena.scraper, subject_vocab=lambda: [],
+                                 check_with_schedule=lambda *a: None, week_doubt=lambda *a: False,
+                                 apply_manual=lambda *a: None),
+                  patch.object(vk_zamena, "add_ai_suggestion") as suggest):
+                for reread, status in ((second, "uncertain"), (first, "ok")):
+                    with patch.object(vk_zamena.scraper, "ocr_table", side_effect=[first, reread]) as ocr:
+                        result = vk_zamena.publish([photo], out_dir=folder / "out", dry=True)
+                    self.assertEqual(result["status"], status)
+                    self.assertTrue(ocr.call_args.kwargs["alternate"])
+                suggest.assert_called_once()
+            self.assertFalse((folder / "out").exists())
+
+    def test_history_survives_overflow_and_recovers_corrupt_main(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pending = root / vk_zamena.INCOMING
+            pending.mkdir()
+            history = [{"msg": str(i), "status": "uncertain"} for i in range(125)]
+            vk_zamena.write_results(history, root)
+            vk_zamena.write_result({"msg": "new", "status": "ok"}, root)
+            queue = root / vk_zamena.RESULT_QUEUE
+            queue.write_text('{"results":[null]}', encoding="utf-8")
+            self.assertEqual(vk_zamena.process_incoming(root), [])
+            self.assertEqual(len(vk_zamena.read_results(root)), 126)
+            self.assertEqual(queue.read_bytes(), (root / vk_zamena.RESULT_BACKUP).read_bytes())
+            queue.write_bytes(b"{")
+            (root / vk_zamena.RESULT_BACKUP).write_bytes(b"{")
+            photo = pending / "9_1.jpg"
+            photo.write_bytes(b"original")
+            with self.assertRaises(ValueError):
+                vk_zamena.process_incoming(root)
+            self.assertEqual(photo.read_bytes(), b"original")
+
+    def test_late_page_reuses_preserved_original(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pending = root / vk_zamena.INCOMING
+            pending.mkdir()
+            first = pending / "90_1.jpg"
+            first.write_bytes(b"original")
+            with patch.object(vk_zamena, "publish", side_effect=lambda *a, **kw: {"status": "uncertain"}) as publish:
+                vk_zamena.process_incoming(root, log=lambda _: None)
+                self.assertFalse(first.exists())
+                (pending / "90_2.jpg").write_bytes(b"continuation")
+                vk_zamena.process_incoming(root, log=lambda _: None)
+                self.assertEqual([p.name for p in publish.call_args.args[0]], ["90_1.jpg", "90_2.jpg"])
+            self.assertEqual(len(vk_zamena.read_results(root)), 2)

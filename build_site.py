@@ -99,7 +99,7 @@ def build(out=ROOT / "_site", scrape_ok=True):
     # расписания всех групп: на сайте 11-А нужны для «где сейчас преподаватель»
     # архив замен сайту не нужен — он для запросов «что было тогда-то»
     shutil.copytree(ROOT / "data", out / "data",
-                    ignore=shutil.ignore_patterns("archive", "vk-incoming", "vk-review", "vk-results.json"))
+                    ignore=shutil.ignore_patterns("archive", "vk-incoming", "vk-review", "vk-results*.json"))
     zameny = out / "data" / "zameny"
     zameny.mkdir(exist_ok=True)
     if not (zameny / "index.json").exists():
