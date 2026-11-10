@@ -2,6 +2,7 @@
 
 Посты ВК берутся, только если задан ключ доступа VK_SERVICE_TOKEN (сервисный ключ приложения ВК,
 хранится в секретах GitHub). Без ключа — только новости сайта, прежние посты ВК остаются.
+Если сайт недоступен, сохраняются его прежние новости и обновляются посты ВК при наличии ключа.
 
     python tools/news.py
     python tools/news.py --html сохранённая_страница.html
@@ -115,16 +116,23 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--html")
     args = ap.parse_args()
-    if args.html:
-        html = Path(args.html).read_text(encoding="utf-8")
+    try:
+        if args.html:
+            html = Path(args.html).read_text(encoding="utf-8")
+        else:
+            r = requests.get(URL, timeout=60, headers=UA)
+            r.raise_for_status()
+            r.encoding = "utf-8"
+            html = r.text
+    except requests.RequestException as e:
+        print(f"Сайт техникума не ответил: {e}", file=sys.stderr)
+        items = []
     else:
-        r = requests.get(URL, timeout=60, headers=UA)
-        r.raise_for_status()
-        r.encoding = "utf-8"
-        html = r.text
-    items = parse(html)
-    if not items:
-        print("ВНИМАНИЕ: новости не найдены — возможно, поменялась вёрстка", file=sys.stderr)
+        items = parse(html)
+        if not items:
+            print("ВНИМАНИЕ: новости не найдены — возможно, поменялась вёрстка", file=sys.stderr)
+    site_ok = bool(items)
+    if args.html and not site_ok:
         return 1
     # текст каждой новости проверяется один раз: решения хранятся в news.json (hidden / checked)
     old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
@@ -148,24 +156,40 @@ def main():
     # посты ВК: текст уже есть, проверяется сразу; если ВК не ответил — остаются прежние посты
     token = os.environ.get("VK_SERVICE_TOKEN")
     vk = [it for it in old.get("items", []) if it.get("from") == "vk"]
+    vk_updated = False
     if token and not args.html:
         try:
             vk = vk_posts(token)
         except (requests.RequestException, RuntimeError, KeyError, ValueError) as e:
-            print(f"ВК не ответил: {e}", file=sys.stderr)
+            # Ошибка HTTP может содержать URL запроса с токеном ВК.
+            print(f"ВК не ответил: {type(e).__name__}", file=sys.stderr)
         else:
+            vk_updated = True
             for it in vk:
                 if blocked(it, it.pop("text")):
                     hidden.add(it["url"])
+    if not site_ok:
+        if not vk_updated:
+            return 1
+        items = old.get("cached_site_items")
+        if items is None:
+            items = [it for it in old.get("items", []) if it.get("from") != "vk"]
+    site_items = items
     items = sorted(items + vk, key=lambda it: it["day"], reverse=True)
     shown = [it for it in items if it["url"] not in hidden][:LIMIT]
     urls = {it["url"] for it in items}
-    new = json.dumps({"source": URL, "items": shown, "hidden": sorted(hidden & urls), "checked": sorted(checked & urls)},
-                     ensure_ascii=False, indent=1)
+    if site_ok:
+        hidden &= urls
+        checked &= urls
+    payload = {"source": URL, "items": shown, "hidden": sorted(hidden), "checked": sorted(checked)}
+    if not site_ok:
+        # Посты ВК могут вытеснить новости сайта из первых LIMIT записей.
+        payload["cached_site_items"] = site_items
+    new = json.dumps(payload, ensure_ascii=False, indent=1)
     if not OUT.exists() or OUT.read_text(encoding="utf-8") != new:
         OUT.write_text(new, encoding="utf-8")
     print(f"новостей: {len(shown)} (скрыто: {len(hidden & urls)}), последняя: {shown[0]['date'] if shown else '—'}")
-    return 0
+    return 0 if site_ok else 1  # health.py учитывает доступность сайта техникума
 
 
 if __name__ == "__main__":
