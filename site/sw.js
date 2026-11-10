@@ -117,7 +117,16 @@ self.addEventListener("fetch", function (e) {
     var timer = setTimeout(function () {
       saved().then(function (hit) { if (hit && !done) { done = true; resolve(hit); } });
     }, req.mode === "navigate" ? 1000 : 1500);
-    net.then(function (res) { if (!done) { done = true; clearTimeout(timer); resolve(res); } }, function () {
+    net.then(function (res) {
+      if (done) return;
+      // Временная ошибка сервера не должна скрывать сохранённую копию.
+      if (res && [500, 502, 503, 504].indexOf(res.status) >= 0) {
+        return saved().then(function (hit) {
+          if (!done) { done = true; clearTimeout(timer); resolve(hit || res); }
+        }, function () { if (!done) { done = true; clearTimeout(timer); resolve(res); } });
+      }
+      done = true; clearTimeout(timer); resolve(res);
+    }, function () {
       clearTimeout(timer);
       saved().then(function (hit) { if (!done) { done = true; hit ? resolve(hit) : reject(new Error("нет сети")); } });
     });
