@@ -57,6 +57,9 @@ jobs:
       - name: Проверить страницу замен
         id: scrape
         continue-on-error: true
+        env:
+          OPENROUTER_MODE: suggest
+          OPENROUTER_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.OPENROUTER_API_KEY || '' }}
         run: python scraper.py
 
       - name: Архив замен (хранится навсегда, сжатый)
