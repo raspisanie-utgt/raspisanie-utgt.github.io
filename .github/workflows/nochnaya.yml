@@ -51,6 +51,15 @@ jobs:
         continue-on-error: true
         run: bash tests/browser/run.sh
 
+      - name: Сохранить отчёты и скриншоты проверки
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nochnaya-proverka-${{ github.run_id }}
+          path: _proverka/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Итог -> задача
         if: always()
         env:
