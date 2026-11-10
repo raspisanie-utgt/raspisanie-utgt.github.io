@@ -6,7 +6,7 @@
     и запускает проверку сайта на GitHub;
   * эта проверка (scraper.py -> process_incoming) распознаёт картинку и, если всё прочиталось
     уверенно, публикует замену: data/zameny/<дата>.json и <дата>-1.png, список дней (index.json);
-  * что получилось — пишется в data/vk-result.json; бот читает его и пишет владельцу в личку,
+  * что получилось — пишется в data/vk-results.json и в старый data/vk-result.json для бота,
     а если распозналось сомнительно — ещё и открывает задачу в GitHub.
 
 Дата замены — только с картинки («... на 06.11.2026 года»), как решил владелец.
@@ -35,6 +35,7 @@ sys.path.insert(0, str(ROOT))
 import requests  # noqa: E402
 
 import scraper  # noqa: E402
+import vk_ai  # noqa: E402
 
 # месяцы распоряжения словами: «на 6 ноября 2026 года»
 MONTHS = {"январ": 1, "феврал": 2, "март": 3, "апрел": 4, "май": 5, "мая": 5, "мае": 5,
@@ -45,6 +46,12 @@ LABEL = "замена из ВК"
 MAX_PHOTOS = 3
 # папка, куда бот кладёт присланные фото (в репозитории)
 INCOMING = "vk-incoming"
+REVIEW = "vk-review"
+RESULT_HISTORY = 100
+TEXT_LIMIT = 1200
+ISSUE_BODY_BYTES = 60000
+LEGACY_REASON_BYTES = 52000  # запас под заголовок, группы и text в действующем боте
+AI_REPORT_MARKER = "\n\nРасшифровка ИИ:\n"
 
 
 # ---------- дата замены с картинки ----------
@@ -217,6 +224,51 @@ def build_meta(date, images, tables, all_changes, title, now=None):
     }
 
 
+def suggestion_context(date):
+    folder = scraper.DATA / "groups"
+    index = json.loads((folder / "index.json").read_text(encoding="utf-8"))
+    day = dt.date.fromisoformat(date)
+    week = scraper.expected_week(date)
+    scheduled = {}
+    if week and index.get("valid_from", date) <= date <= index.get("valid_to", date):
+        for group in index["groups"]:
+            schedule = json.loads((folder / group["file"]).read_text(encoding="utf-8"))
+            scheduled[group["group"]] = {
+                n for row in schedule["days"].get(str(day.isoweekday()), [])
+                if not row.get("week") or row["week"] == week
+                for n in row["lessons"]
+            }
+    bells = json.loads((scraper.DATA / "bells.json").read_text(encoding="utf-8"))
+    times = bells["monday" if day.weekday() == 0 else "other_days"]
+    bell_times = {}
+    for pair, (start, _) in times["pairs"].items():
+        second = dt.datetime.strptime(start, "%H:%M") + dt.timedelta(minutes=bells["lesson_minutes"])
+        bell_times[start] = int(pair) * 2 - 1
+        bell_times[second.strftime("%H:%M")] = int(pair) * 2
+    if times.get("razgovory"):
+        bell_times[times["razgovory"][0]] = 0
+    return scheduled, bell_times
+
+
+def add_ai_suggestion(result, files, tables, log):
+    if os.environ.get("OPENROUTER_MODE") != "suggest":
+        return
+    date = result["date"]
+    try:
+        scheduled, bell_times = suggestion_context(date)
+        page_counts = [len(t["rows"]) if t.get("ok") else None for t in tables]
+        summary, report = vk_ai.suggest(files, date, page_counts, scraper.known_groups(),
+                                       scheduled, bell_times, scraper.known_rooms())
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        log(f"отчёт ИИ недоступен ({type(exc).__name__})")
+        return
+    result["reason"] += "\n\n" + summary
+    if report:
+        result["reason"] += AI_REPORT_MARKER + report
+        summary += " Полная расшифровка в reason."
+    result["text"] = (summary + "\n" + result["text"])[:TEXT_LIMIT]
+
+
 def publish(files, out_dir=None, today=None, dry=False, log=print):
     """Распознать фото и, если всё чисто, опубликовать замену на сайте.
 
@@ -260,8 +312,10 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
     meta = build_meta(date, images, tables, all_changes, title)
     scraper.apply_manual(meta)
     if not is_clean(meta):
-        return {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],
-                "reason": why(meta), "text": _norm(text)[:1200]}
+        result = {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],
+                  "reason": why(meta), "text": _norm(text)[:TEXT_LIMIT]}
+        add_ai_suggestion(result, files, tables, log)
+        return result
     if dry:
         return {"status": "ok", "date": date, "groups": meta["groups_in_order"], "dry": True}
 
@@ -314,39 +368,121 @@ def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
     incoming = data_dir / INCOMING
     if not incoming.is_dir():
         return []
-    results = []
+    results, cleanup = [], []
+    history = read_results(data_dir)
+    by_message = {res.get("msg"): res for res in history}
     for msg, files in sorted(incoming_groups(incoming).items()):
+        prior = by_message.get(msg, {})
         try:
+            # Новые страницы того же сообщения должны отличаться от повторного запуска.
+            inputs = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
+            saved = prior.get("inputs", {})
+            if prior.get("status") != "error" and inputs.items() <= saved.items():
+                cleanup.append((prior, files))
+                continue
             res = publish(files, out_dir=out_dir, today=today, log=log)
         except Exception as e:
-            res = {"status": "error", "error": str(e)[:300]}
+            # Фото остаются на месте. Одинаковый сбой не порождает уведомление каждый час.
+            res = {"status": "error", "error": f"обработка фото не завершилась ({type(e).__name__})"}
+            if prior.get("status") == "error" and prior.get("error") == res["error"]:
+                continue
+        else:
+            res["inputs"] = inputs
+            cleanup.append((res, files))
         res["msg"] = msg
         results.append(res)
         log("замена из ВК (%s): %s%s" % (msg, res.get("status"),
                                          (" за " + res["date"]) if res.get("date") else ""))
-        # картинки разобраны — убрать их, чтобы не попали в сайт и не повторялись
+    if results:
+        write_results(results, data_dir, history)
+    elif cleanup and history:
+        write_legacy_result(history[-1], data_dir)
+    # Сначала сохраняем все отчёты. При ошибке записи фото остаются в очереди.
+    for res, files in cleanup:
+        if res["status"] in ("uncertain", "no_date"):
+            fingerprint = hashlib.sha256(json.dumps(res["inputs"], sort_keys=True).encode()).hexdigest()
+            archive = data_dir / REVIEW / fingerprint
+            try:
+                archive.mkdir(parents=True, exist_ok=True)
+                for path in files:
+                    scraper.write_atomic(archive / path.name, path.read_bytes())
+            except OSError as exc:
+                log(f"не удалось сохранить исходное фото ВК ({type(exc).__name__})")
+                continue
+        elif res["status"] == "error":
+            continue
         for path in files:
             try:
                 path.unlink()
             except OSError:
                 pass
-    if results:
-        write_result(results[-1], data_dir)
     return results
 
 
-def write_result(res, data_dir=None):
-    """data/vk-result.json — что получилось; бот читает его и пишет владельцу в личку."""
+def read_results(data_dir):
+    path = data_dir / "vk-results.json"
+    legacy = data_dir / "vk-result.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))["results"]
+    return [json.loads(legacy.read_text(encoding="utf-8"))] if legacy.exists() else []
+
+
+def write_legacy_result(result, data_dir):
+    last = {k: v for k, v in result.items() if k != "inputs"}
+    reason = last.get("reason", "")
+    if AI_REPORT_MARKER in reason:
+        summary, _, report = reason.partition(AI_REPORT_MARKER)
+        formatted = summary + AI_REPORT_MARKER + "\n" + "\n".join("    " + line for line in report.split("\n"))
+        if len(formatted.encode("utf-8")) <= LEGACY_REASON_BYTES:
+            last["reason"] = formatted
+        else:
+            last["reason"] = summary + "\n\n" + report_link(last.get("msg"))
+            last["text"] = last.get("text", "").replace("Полная расшифровка в reason.", "Полная расшифровка в vk-results.json.")
+    legacy = data_dir / "vk-result.json"
+    payload = json.dumps(last, ensure_ascii=False, indent=1)
+    if not legacy.exists() or legacy.read_text(encoding="utf-8") != payload:
+        scraper.write_atomic(legacy, payload)
+    return legacy
+
+
+def write_results(results, data_dir=None, history=None):
+    """История по сообщениям ВК и совместимая копия последнего результата."""
     data_dir = Path(data_dir) if data_dir else scraper.DATA
-    res = {k: v for k, v in res.items() if k != "meta"}
-    res["at"] = dt.datetime.now(scraper.TZ).isoformat(timespec="minutes")
-    path = data_dir / "vk-result.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    scraper.write_atomic(path, json.dumps(res, ensure_ascii=False, indent=1))
-    return path
+    if history is None:
+        history = read_results(data_dir)
+    stamp = dt.datetime.now(scraper.TZ).isoformat(timespec="microseconds")
+    new = [{**{k: v for k, v in res.items() if k != "meta"}, "at": stamp} for res in results]
+    messages = {res["msg"] for res in new if res.get("msg")}
+    old = [res for res in history if res.get("msg") not in messages]
+    remaining = RESULT_HISTORY - len(new)
+    history = (old[-remaining:] if remaining > 0 else []) + new
+    data_dir.mkdir(parents=True, exist_ok=True)
+    scraper.write_atomic(data_dir / "vk-results.json", json.dumps({"results": history}, ensure_ascii=False, indent=1))
+    return write_legacy_result(new[-1], data_dir)
 
 
-def open_issue(date, groups, reason_text, text, log=print):
+def write_result(res, data_dir=None):
+    return write_results([res], data_dir)
+
+
+def report_link(msg):
+    repo = os.environ.get("GITHUB_REPOSITORY", "raspisanie-utgt/raspisanie-utgt.github.io")
+    return (f"Полный отчёт для сообщения {msg or 'ВК'} сохранён в "
+            f"[data/vk-results.json](https://github.com/{repo}/blob/main/data/vk-results.json).")
+
+
+def issue_body(date, groups, reason_text, text, msg):
+    summary = _norm(text)[:TEXT_LIMIT]
+    header = (f"Замена из беседы ВК на **{date}** требует ручной проверки.\n\n"
+              f"Группы в распоряжении: {', '.join(groups) or 'не прочитались'}.\n\n")
+    report = "\n".join("    " + line for line in reason_text.split("\n"))
+    body = f"{header}Причина и расшифровка:\n\n{report}\n\nКратко: {summary}"
+    if len(body.encode("utf-8")) <= ISSUE_BODY_BYTES:
+        return body
+    return f"{header}Кратко: {summary}\n\n{report_link(msg)}"
+
+
+def open_issue(date, groups, reason_text, text, log=print, msg=""):
     """Задача в GitHub: распозналось сомнительно — пусть посмотрит человек."""
     token = os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY", "raspisanie-utgt/raspisanie-utgt.github.io")
@@ -360,13 +496,7 @@ def open_issue(date, groups, reason_text, text, log=print):
         requests.post(base + "/labels", headers=h, json={"name": LABEL, "color": "2456c7"}, timeout=30)
     except Exception:
         pass
-    body = ("Замена из беседы ВК на **%s** распозналась неуверенно — на сайте её нет.\n\n"
-            "Причина: %s.\n"
-            "Группы в распоряжении: %s.\n\n"
-            "Распознанный текст:\n```\n%s\n```\n\n"
-            "Посмотрите фото в беседе и поправьте data/zameny/%s.json или data/zameny_popravki.json."
-            % (date, reason_text, ", ".join(groups) if groups else "не прочитались",
-               _norm(text)[:1500], date))
+    body = issue_body(date, groups, reason_text, text, msg)
     data = {"title": "Замена из ВК на %s: распознано сомнительно" % date,
             "body": body, "labels": [LABEL]}
     if assignee:
@@ -407,7 +537,7 @@ def main():
         try:
             n = open_issue(res.get("date") or "?", res.get("groups") or [],
                            res.get("reason") or res.get("error") or res.get("status"),
-                           res.get("text") or "")
+                           res.get("text") or "", msg=args.msg)
             if n:
                 res["issue"] = n
                 print("открыта задача #" + str(n))
