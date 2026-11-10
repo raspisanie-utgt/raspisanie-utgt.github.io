@@ -47,7 +47,8 @@ MAX_PHOTOS = 3
 # папка, куда бот кладёт присланные фото (в репозитории)
 INCOMING = "vk-incoming"
 REVIEW = "vk-review"
-RESULT_HISTORY = 100
+RESULT_QUEUE = "vk-results.json"
+RESULT_BACKUP = "vk-results.backup.json"
 TEXT_LIMIT = 1200
 ISSUE_BODY_BYTES = 60000
 LEGACY_REASON_BYTES = 52000  # запас под заголовок, группы и text в действующем боте
@@ -269,6 +270,22 @@ def add_ai_suggestion(result, files, tables, log):
     result["text"] = (summary + "\n" + result["text"])[:TEXT_LIMIT]
 
 
+def verify_ocr(files, tables, vocab, date, title):
+    second = []
+    for path in files:
+        second.append(scraper.ocr_table(path, vocab, continued=any(t.get("in_table") for t in second),
+                                        alternate=True))
+    scraper.check_with_schedule(second, date, title)
+    for page, (first, other) in enumerate(zip(tables, second), 1):
+        if not other.get("ok") or other.get("group_doubt") or len(first["rows"]) != len(other["rows"]):
+            return f"лист {page}: повторное OCR не подтвердило таблицу"
+        fields = ("group", "lessons", "time", "subject", "room")
+        for row, (a, b) in enumerate(zip(first["rows"], other["rows"]), 1):
+            if b.get("uncertain") or any(a[field] != b[field] for field in fields):
+                return f"лист {page}, строка {row}: два чтения OCR расходятся"
+    return None
+
+
 def publish(files, out_dir=None, today=None, dry=False, log=print):
     """Распознать фото и, если всё чисто, опубликовать замену на сайте.
 
@@ -287,8 +304,15 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
             date = d
             break
     if not date:
-        return {"status": "no_date", "error": "на картинке не нашлась дата замены",
-                "text": _norm(text)[:400]}
+        result = {"status": "no_date", "error": "на картинке не нашлась дата замены",
+                  "text": _norm(text)[:400]}
+        suggested, report = vk_ai.suggest_date(files, today)
+        if report:
+            summary = (f"Две модели предложили дату {suggested}. Нужна ручная проверка."
+                       if suggested else "ИИ не подтвердил дату. Нужна ручная проверка.")
+            result.update(suggested_date=suggested, reason=result["error"] + "\n\n" + summary
+                          + AI_REPORT_MARKER + report)
+        return result
 
     meta_path = out_dir / ("%s.json" % date)
     if meta_path.exists():
@@ -311,9 +335,12 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
 
     meta = build_meta(date, images, tables, all_changes, title)
     scraper.apply_manual(meta)
-    if not is_clean(meta):
+    mismatch = None
+    if is_clean(meta) and not meta.get("checked_by_hand"):
+        mismatch = verify_ocr(files, tables, vocab, date, title)
+    if mismatch or not is_clean(meta):
         result = {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],
-                  "reason": why(meta), "text": _norm(text)[:TEXT_LIMIT]}
+                  "reason": mismatch or why(meta), "text": _norm(text)[:TEXT_LIMIT]}
         add_ai_suggestion(result, files, tables, log)
         return result
     if dry:
@@ -352,9 +379,18 @@ def incoming_groups(incoming):
             key = stem
         groups.setdefault(key, []).append(path)
     for files in groups.values():
-        files.sort(key=lambda p: (int(p.stem.rpartition("_")[2]) if p.stem.rpartition("_")[2].isdigit() else 0,
-                                  p.name))
+        files.sort(key=page_number)
     return groups
+
+
+def review_folder(data_dir, inputs):
+    fingerprint = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+    return data_dir / REVIEW / fingerprint
+
+
+def page_number(path):
+    tail = path.stem.rpartition("_")[2]
+    return (int(tail) if tail.isdigit() else 0, path.name)
 
 
 def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
@@ -366,29 +402,42 @@ def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
     data_dir = Path(data_dir) if data_dir else scraper.DATA
     out_dir = Path(out_dir) if out_dir else scraper.OUT_DIR
     incoming = data_dir / INCOMING
+    history = read_results(data_dir)
+    if (data_dir / RESULT_QUEUE).exists() or (data_dir / RESULT_BACKUP).exists():
+        save_queue(data_dir, history)
     if not incoming.is_dir():
         return []
     results, cleanup = [], []
-    history = read_results(data_dir)
     by_message = {res.get("msg"): res for res in history}
+    previous_inputs = {res.get("msg"): res["inputs"] for res in history if res.get("inputs")}
     for msg, files in sorted(incoming_groups(incoming).items()):
         prior = by_message.get(msg, {})
         try:
             # Новые страницы того же сообщения должны отличаться от повторного запуска.
             inputs = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
-            saved = prior.get("inputs", {})
+            saved = previous_inputs.get(msg, {})
             if prior.get("status") != "error" and inputs.items() <= saved.items():
-                cleanup.append((prior, files))
+                cleanup.append((prior, files, files))
                 continue
-            res = publish(files, out_dir=out_dir, today=today, log=log)
+            # Если бот успел отправить только часть снимков, подбираем ранее сохранённые листы.
+            sources = {path.name: path for path in files}
+            for name in saved.keys() - inputs.keys():
+                if Path(name).name != name:
+                    raise ValueError("неверное имя сохранённой страницы")
+                old = review_folder(data_dir, saved) / name
+                if hashlib.sha256(old.read_bytes()).hexdigest() != saved[name]:
+                    raise ValueError("сохранённая страница не совпала с исходной")
+                sources[name] = old
+            ordered = sorted(sources.values(), key=page_number)
+            res = publish(ordered, out_dir=out_dir, today=today, log=log)
         except Exception as e:
             # Фото остаются на месте. Одинаковый сбой не порождает уведомление каждый час.
             res = {"status": "error", "error": f"обработка фото не завершилась ({type(e).__name__})"}
             if prior.get("status") == "error" and prior.get("error") == res["error"]:
                 continue
         else:
-            res["inputs"] = inputs
-            cleanup.append((res, files))
+            res["inputs"] = {**saved, **inputs}
+            cleanup.append((res, files, ordered))
         res["msg"] = msg
         results.append(res)
         log("замена из ВК (%s): %s%s" % (msg, res.get("status"),
@@ -398,18 +447,17 @@ def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
     elif cleanup and history:
         write_legacy_result(history[-1], data_dir)
     # Сначала сохраняем все отчёты. При ошибке записи фото остаются в очереди.
-    for res, files in cleanup:
-        if res["status"] in ("uncertain", "no_date"):
-            fingerprint = hashlib.sha256(json.dumps(res["inputs"], sort_keys=True).encode()).hexdigest()
-            archive = data_dir / REVIEW / fingerprint
-            try:
-                archive.mkdir(parents=True, exist_ok=True)
-                for path in files:
+    for res, files, sources in cleanup:
+        if res["status"] == "error":
+            continue
+        archive = review_folder(data_dir, res["inputs"])
+        try:
+            archive.mkdir(parents=True, exist_ok=True)
+            for path in sources:
+                if path.parent != archive:
                     scraper.write_atomic(archive / path.name, path.read_bytes())
-            except OSError as exc:
-                log(f"не удалось сохранить исходное фото ВК ({type(exc).__name__})")
-                continue
-        elif res["status"] == "error":
+        except OSError as exc:
+            log(f"не удалось сохранить исходное фото ВК ({type(exc).__name__})")
             continue
         for path in files:
             try:
@@ -420,11 +468,39 @@ def process_incoming(data_dir=None, out_dir=None, today=None, log=print):
 
 
 def read_results(data_dir):
-    path = data_dir / "vk-results.json"
+    copies = []
+    for filename in (RESULT_QUEUE, RESULT_BACKUP):
+        path = data_dir / filename
+        if not path.exists():
+            continue
+        try:
+            results = json.loads(path.read_text(encoding="utf-8"))["results"]
+            if not isinstance(results, list) or any(
+                not isinstance(item, dict) or not isinstance(item.get("at"), str)
+                or not isinstance(item.get("status"), str)
+                or not isinstance(item.get("inputs", {}), dict) for item in results
+            ):
+                raise ValueError("некорректная структура очереди")
+        except (ValueError, KeyError, TypeError):
+            copies.append(None)
+        else:
+            copies.append(results)
+    valid = [copy for copy in copies if copy is not None]
+    if valid:
+        return max(valid, key=len)
+    if copies:
+        raise ValueError("Очередь ВК и её резервная копия недоступны. Входные фото сохранены.")
     legacy = data_dir / "vk-result.json"
-    if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))["results"]
     return [json.loads(legacy.read_text(encoding="utf-8"))] if legacy.exists() else []
+
+
+def save_queue(data_dir, history):
+    data_dir.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({"results": history}, ensure_ascii=False, indent=1).encode("utf-8")
+    for filename in (RESULT_BACKUP, RESULT_QUEUE):
+        path = data_dir / filename
+        if not path.exists() or path.read_bytes() != payload:
+            scraper.write_atomic(path, payload)
 
 
 def write_legacy_result(result, data_dir):
@@ -452,12 +528,8 @@ def write_results(results, data_dir=None, history=None):
         history = read_results(data_dir)
     stamp = dt.datetime.now(scraper.TZ).isoformat(timespec="microseconds")
     new = [{**{k: v for k, v in res.items() if k != "meta"}, "at": stamp} for res in results]
-    messages = {res["msg"] for res in new if res.get("msg")}
-    old = [res for res in history if res.get("msg") not in messages]
-    remaining = RESULT_HISTORY - len(new)
-    history = (old[-remaining:] if remaining > 0 else []) + new
-    data_dir.mkdir(parents=True, exist_ok=True)
-    scraper.write_atomic(data_dir / "vk-results.json", json.dumps({"results": history}, ensure_ascii=False, indent=1))
+    # У бота может быть длительный простой. Сохраняем все события, а не только последние 100.
+    save_queue(data_dir, history + new)
     return write_legacy_result(new[-1], data_dir)
 
 

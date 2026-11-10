@@ -287,7 +287,7 @@ def snap_subject(text, vocab):
     return text, False
 
 
-def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
+def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate=False):
     """Находит сетку таблицы и распознаёт её построчно, ячейка за ячейкой.
     continued — картинка продолжает таблицу с предыдущей картинки того же дня: шапки «группа / урок» на ней
     может не быть, строки идут сразу."""
@@ -316,7 +316,8 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
     scale = max(3, int(round(66 / max(row_h, 1))))
 
     def cell(x0, x1, y0, y1, psm, k=None, pad=False, lang="rus", extra=()):
-        c = im.crop((x0 + 2, y0 + 2, x1 - 1, y1 - 1))
+        c = im.crop((x0 + 3, y0 + 3, x1 - 3, y1 - 3) if alternate
+                    else (x0 + 2, y0 + 2, x1 - 1, y1 - 1))
         # пусто ли: считаем и серые точки — мелкий размытый текст бывает совсем не чёрным,
         # и «11-В» иначе принимается за пустую ячейку (строка молча уходит предыдущей группе)
         dark = (np.array(c) < 192).mean() if c.width > 4 and c.height > 4 else 0
@@ -324,7 +325,9 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False):
             return "", dark
         k = k or scale
         c = c.resize((c.width * k, c.height * k), Image.LANCZOS)
-        if pad:  # белое поле вокруг: мелкие буквы у самой рамки ячейки иначе путаются (П -> И, 7 -> 1)
+        if alternate:
+            c = ImageOps.autocontrast(c)
+        if pad or (alternate and psm == 7):  # белое поле вокруг мелких знаков
             c = ImageOps.expand(c, border=c.height // 2, fill=255)
         return _tesseract(c, psm, lang, extra), dark
 
