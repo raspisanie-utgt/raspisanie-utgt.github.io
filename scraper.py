@@ -429,6 +429,13 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
         room = snap_room(room, rooms)
         subject = subject.strip(" |]")
         subject, s_ok = snap_subject(subject, vocab)
+        if not s_ok and subject and subject not in vocab:
+            # На мелком снимке обрезка у границы иногда портит только название.
+            # Принимаем повторное чтение, только если два режима дают один предмет из словаря.
+            reread = [snap_subject(cell(vlines[2], vlines[3], y0, y1, psm, k, pad=True)[0].strip(" |]"), vocab)
+                      for psm, k in ((6, 4), (7, 5))]
+            if reread[0] == reread[1] and reread[0][1] and reread[0][0] in vocab:
+                subject, s_ok = reread[0]
         if not subject and texts[2][1] > 0.01:  # в ячейке что-то написано, а прочиталась пустота
             s_ok = False
         if not lessons and not time:
