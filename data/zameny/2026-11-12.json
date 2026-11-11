@@ -1,0 +1,337 @@
+{
+ "date": "2026-11-12",
+ "group": "11-А",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-11-11T15:41+03:00",
+ "first_seen": "2026-11-11T15:41+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": null,
+   "file": "2026-11-12-1.jpg",
+   "sha1": "23b2cec903982ef5e2c557073f90fd4241e7f6f4"
+  }
+ ],
+ "title": "Четверг, 2-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": false,
+ "ocr_group_doubt": false,
+ "week_doubt": false,
+ "manual": "Сверено вручную по оригиналу распоряжения № 70 от 11.11.2026 из ВК",
+ "groups_in_order": [
+  "11-П",
+  "11-Д",
+  "11-А",
+  "11-С",
+  "11-В",
+  "11-Л",
+  "21-П",
+  "21-А",
+  "21-С",
+  "31-П",
+  "31-Д",
+  "31-С",
+  "41-П",
+  "41-А",
+  "41-С"
+ ],
+ "changes": [
+  {
+   "lessons": [
+    5,
+    6
+   ],
+   "time": null,
+   "subject": "Биология",
+   "room": "2-7",
+   "uncertain": false
+  },
+  {
+   "lessons": [
+    7,
+    8
+   ],
+   "time": null,
+   "subject": "Иностранный язык (немецкий)",
+   "room": "1-14",
+   "uncertain": false
+  }
+ ],
+ "all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-А": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Биология",
+    "room": "2-7",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-С": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "11-В": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий) / Биология",
+    "room": "1-14 / 2-7",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Биология",
+    "room": "2-7",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "21-П": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Электротехника и электроника",
+    "room": "1-14",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "История России",
+    "room": "2-10",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Иностранный язык в профессиональной деятельности (английский)",
+    "room": "2-15",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.01.03 Автоматизированные системы управления на транспорте (по видам транспорта)",
+    "room": "1-15",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.02.01 Строительство и реконструкция железных дорог",
+    "room": "2-13",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.01.02 Теоретические основы построения и эксплуатации перегонных систем железнодорожной автоматики",
+    "room": "1-10",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Транспортная безопасность",
+    "room": "1-24",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Физическая культура",
+    "room": "1-33",
+    "uncertain": false
+   }
+  ]
+ },
+ "from_vk": true
+}
