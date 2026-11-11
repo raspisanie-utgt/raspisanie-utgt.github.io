@@ -137,10 +137,30 @@ const { URL, lastZ, launch, page, open, report, tab, openWhere, openHistory } = 
     // «Поделиться»: картинка дня — в меню «Поделиться» или скачивается
     await step(T + 'поделиться', async () => {
       ok(await p.isVisible('#shareBtn'), T + 'нет надписи «Поделиться»');
-      const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }), p.click('#shareBtn')]);
-      ok(/^raspisanie-11-A-\d\d\.\d\d\.png$/.test(dl.suggestedFilename()), T + 'картинка дня скачалась с именем ' + dl.suggestedFilename());
-      const size = (await require('fs').promises.stat(await dl.path())).size;
-      ok(size > 10000, T + 'картинка дня слишком маленькая: ' + size + ' байт');
+      const filename = /^raspisanie-11-A-\d\d\.\d\d\.png$/;
+      // Системное меню не умеет завершать выбор в безоконном Chrome.
+      // Проверяем переданный файл и отдельно ветку скачивания.
+      await p.evaluate(() => {
+        Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+        Object.defineProperty(navigator, 'share', { configurable: true, value: async ({ files }) => {
+          window.sharedSchedule = files.map(f => ({ name: f.name, size: f.size, type: f.type }));
+        } });
+      });
+      try {
+        await p.click('#shareBtn');
+        const [shared] = await p.evaluate(() => window.sharedSchedule || []);
+        ok(shared && filename.test(shared.name) && shared.type === 'image/png' && shared.size > 10000,
+          T + 'в системное меню не передана картинка расписания');
+        await p.evaluate(() => {
+          Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false });
+        });
+        const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }), p.click('#shareBtn')]);
+        ok(filename.test(dl.suggestedFilename()), T + 'картинка дня скачалась с именем ' + dl.suggestedFilename());
+        const size = (await require('fs').promises.stat(await dl.path())).size;
+        ok(size > 10000, T + 'картинка дня слишком маленькая: ' + size + ' байт');
+      } finally {
+        await p.evaluate(() => { delete navigator.canShare; delete navigator.share; delete window.sharedSchedule; });
+      }
     });
 
     // крупная «следующая пара»: во время пары её нет (видно рамкой «Сейчас»), на компьютере нет вовсе

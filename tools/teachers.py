@@ -33,14 +33,14 @@ UA = {"User-Agent": "Mozilla/5.0 (utgt schedule bot; +https://github.com/raspisa
 
 def full_names(pdf_path):
     """Колонка «Фамилия, имя, отчество» по всем страницам -> ['Абрамова Татьяна Юрьевна', ...]."""
-    pdf = pdfplumber.open(pdf_path)
-    head = pdf.pages[0].extract_words()
-    fam = next(w for w in head if w["text"].startswith("Фамилия"))
-    dol = next(w for w in head if w["text"].startswith("Должность"))
-    x0, x1 = fam["x0"] - 15, dol["x0"] - 3
-    words = [w["text"] for page in pdf.pages for w in page.extract_words()
-             # только слова с заглавной: в колонку заезжает «преподаватель» из соседней
-             if x0 <= w["x0"] < x1 and w["text"][:1].isupper()]
+    with pdfplumber.open(pdf_path) as pdf:
+        head = pdf.pages[0].extract_words()
+        fam = next(w for w in head if w["text"].startswith("Фамилия"))
+        dol = next(w for w in head if w["text"].startswith("Должность"))
+        x0, x1 = fam["x0"] - 15, dol["x0"] - 3
+        words = [w["text"] for page in pdf.pages for w in page.extract_words()
+                 # только слова с заглавной: в колонку заезжает «преподаватель» из соседней
+                 if x0 <= w["x0"] < x1 and w["text"][:1].isupper()]
     seen, out = set(), []
     for m in FULL_RE.finditer(" ".join(words)):
         name = " ".join(m.groups())
