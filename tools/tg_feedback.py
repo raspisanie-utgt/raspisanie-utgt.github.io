@@ -13,6 +13,7 @@
 import os
 import re
 import sys
+import time
 
 import requests
 
@@ -81,11 +82,20 @@ class Bot:
         self.token, self.s = token, session or requests.Session()
 
     def call(self, method, **params):
-        r = self.s.post(TG.format(token=self.token, method=method), json=params, timeout=30)
-        r.raise_for_status()
-        data = r.json()
-        if not data.get("ok"):
-            raise RuntimeError(f"Telegram {method}: {data}")
+        try:
+            r = self.s.post(TG.format(token=self.token, method=method), json=params, timeout=30)
+            r.raise_for_status()
+            data = r.json()
+        except requests.RequestException as error:
+            # URL из исключения содержит токен бота.
+            detail = f"HTTP {error.response.status_code}" if error.response is not None else type(error).__name__
+            raise RuntimeError(f"Telegram {method}: {detail}") from None
+        except ValueError:
+            raise RuntimeError(f"Telegram {method}: неверный ответ") from None
+        if not isinstance(data, dict) or not data.get("ok") or "result" not in data:
+            code = data.get("error_code") if isinstance(data, dict) else None
+            detail = f"код {code}" if isinstance(code, int) else "неверный ответ"
+            raise RuntimeError(f"Telegram {method}: {detail}")
         return data["result"]
 
 
@@ -115,6 +125,15 @@ def run(bot, repo, log=print, assignee=None):
     if not updates:
         log("новых сообщений нет")
         return 0
+    received_at = int(time.time())
+    dates = []
+    for update in updates:
+        msg = update.get("message") or {}
+        date = msg.get("date")
+        if msg.get("chat", {}).get("type") == "private" and type(date) is int and 0 < date <= received_at:
+            dates.append(date)
+    if dates:
+        log(f"самое старое входящее сообщение ждало {received_at - min(dates)} с до опроса")
     repo.ensure_labels()
     created, done = 0, None
     try:

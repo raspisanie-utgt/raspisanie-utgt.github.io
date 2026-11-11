@@ -294,7 +294,11 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
     """
     out_dir = Path(out_dir) if out_dir else scraper.OUT_DIR
     today = today or dt.datetime.now(scraper.TZ).date()
-    files = [Path(f) for f in files][:MAX_PHOTOS]
+    files = [Path(f) for f in files]
+    if len(files) > MAX_PHOTOS:
+        return {"status": "uncertain",
+                "reason": f"Получено {len(files)} страниц, предел автоматической проверки — {MAX_PHOTOS}. "
+                          "Нужно проверить полный комплект вручную."}
 
     date, text = None, ""
     for p in files:  # дата на первом листе, но если там не нашлось — посмотрим остальные
@@ -316,7 +320,14 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
 
     meta_path = out_dir / ("%s.json" % date)
     if meta_path.exists():
-        return {"status": "already", "date": date}
+        existing = json.loads(meta_path.read_text(encoding="utf-8"))
+        known_images = {i.get("sha1") for i in existing.get("images", [])}
+        if all(hashlib.sha1(p.read_bytes()).hexdigest() in known_images for p in files):
+            return {"status": "already", "date": date}
+        return {"status": "uncertain", "date": date,
+                "reason": "На эту дату уже опубликованы замены, но получены другие фотографии. "
+                          "Возможно, это дополнение или новая редакция. Сверьте с опубликованным распоряжением. "
+                          "Действующие замены сохранены."}
 
     vocab = scraper.subject_vocab()
     tables = []
@@ -585,13 +596,16 @@ def main():
     ap.add_argument("--msg", default="", help="номер сообщения ВК — для отчёта")
     ap.add_argument("--dry", action="store_true", help="только показать, что получилось, ничего не писать")
     args = ap.parse_args()
+    urls = [x.strip() for x in (args.url or "").split(",") if x.strip()]
+    if not args.file and len(urls) > MAX_PHOTOS:
+        ap.error(f"больше {MAX_PHOTOS} страниц — требуется ручная проверка всего комплекта")
     tmpdir = tempfile.mkdtemp(prefix="vkzam")
     try:
         if args.file:
             files = [Path(args.file)]
         else:
             files = []
-            for i, u in enumerate([x for x in (args.url or "").split(",") if x.strip()][:MAX_PHOTOS], 1):
+            for i, u in enumerate(urls, 1):
                 p = Path(tmpdir) / ("photo%d.png" % i)
                 download(u.strip(), p)
                 files.append(p)
