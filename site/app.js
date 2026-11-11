@@ -155,6 +155,22 @@
     });
   }
 
+  function refreshMissingOrder() {
+    if (!state.data || state.offset === "week" || !navigator.onLine || state.orderIndexPending) return;
+    var now = A.moscowNow(), date = A.addDays(params.get("date") || now.date, state.offset);
+    var data = state.data;
+    if (date < now.date || data.index.days.indexOf(date) >= 0) return;
+    var saved = false;
+    state.orderIndexPending = true;
+    getJSON("data/zameny/index.json", function () { saved = state.savedHit = true; }).then(function (index) {
+      if (saved || state.data !== data || !index || !Array.isArray(index.days)) return;
+      var changed = state.indexFailed || index.days.join() !== data.index.days.join();
+      data.index = index;
+      state.indexFailed = false;
+      if (changed) render();
+    }).catch(function () {}).then(function () { state.orderIndexPending = false; });
+  }
+
   // Данные давно не обновлялись (ежечасная проверка встала) — плашка об этом, а не спокойное «замен нет».
   // Днём проверка раз в час — тревога через 3 часа; ночью проверок нет (21:47–6:47) — через 12 часов.
   function staleHTML() {
@@ -1646,7 +1662,11 @@
       else if (state.group || state.teacher) render();
     }
     setInterval(tick, 1000);
-    function wake() { if (!document.hidden) tick(); }
+    function wake(event) {
+      if (document.hidden) return;
+      tick();
+      if (event.type === "visibilitychange" || event.persisted) refreshMissingOrder();
+    }
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("pageshow", wake);
     window.addEventListener("focus", wake);
@@ -1922,6 +1942,7 @@
       if (i < 0 || j < 0 || j >= TABS.length) return;
       state.offset = TABS[j];
       render(dx < 0 ? "next" : "prev");
+      refreshMissingOrder();
     }, { passive: true });
   })();
 
@@ -1937,6 +1958,7 @@
     var day = tabs[next].dataset.day;
     state.offset = day === "week" ? "week" : +day;
     render(true);
+    refreshMissingOrder();
     var updated = Array.prototype.slice.call(this.querySelectorAll('button[role="tab"]')).filter(function (b) { return b.dataset.day === day; })[0];
     if (updated) { updated.focus(); updated.scrollIntoView({ block: "nearest", inline: "nearest" }); }
   });
@@ -1946,6 +1968,7 @@
     if (!b || (!state.group && !state.teacher)) return;
     state.offset = b.dataset.day === "week" ? "week" : +b.dataset.day;
     render(true);
+    refreshMissingOrder();
     // переключились снизу длинной страницы — вернуть наверх, к заголовку с датой
     window.scrollTo(0, 0);
   });
