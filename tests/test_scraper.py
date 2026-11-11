@@ -15,6 +15,26 @@ FIX = Path(__file__).parent / "fixtures"
 needs_tesseract = pytest.mark.skipif(shutil.which("tesseract") is None, reason="нет tesseract")
 
 
+def test_ocr_process_can_read_temporary_image(monkeypatch):
+    from types import SimpleNamespace
+
+    from PIL import Image
+
+    files = []
+
+    def read_image(command, **options):
+        image = Path(command[1])
+        with image.open("rb") as stream:
+            assert stream.read(8) == b"\x89PNG\r\n\x1a\n"
+        files.append(image)
+        assert options["encoding"] == "utf-8"
+        return SimpleNamespace(stdout="  11-А  Математика\n")
+
+    monkeypatch.setattr(scraper.subprocess, "run", read_image)
+    assert scraper._tesseract(Image.new("L", (10, 10)), 6) == "11-А Математика"
+    assert files and not files[0].exists()
+
+
 def test_parse_page_finds_ochnoe_block():
     blocks = scraper.parse_page((FIX / "zamena_page_2026-10-26.html").read_text(encoding="utf-8"))
     assert [(b["date"], b["section"]) for b in blocks] == [("2026-10-27", "ochnoe"), ("2026-10-27", "zaochnoe")]

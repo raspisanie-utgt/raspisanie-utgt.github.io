@@ -76,7 +76,7 @@
     }).filter(Boolean);
   }
 
-  function getJSON(url) {
+  function getJSON(url, onSaved) {
     // запрос, начатый ещё в <head> (см. index.html), — забираем его ответ, второй раз не качаем
     // (только в первые полминуты — позже это уже устаревший ответ)
     var pre = window.__pre && window.__pre[url];
@@ -85,9 +85,12 @@
     return (pre || fetch(url, { cache: "no-cache" })).then(function (r) {
       if (!r.ok) throw new Error(url + ": " + r.status);
       // ответ из сохранённой копии (нет сети или она слишком медленная) — показать это над расписанием
-      if (r.headers.get("X-Utgt-Saved") && !state.savedHit) {
-        state.savedHit = true;
-        if (state.data) setTimeout(function () { drawCalendar(params.get("date") || A.moscowNow().date); }, 0);
+      if (r.headers.get("X-Utgt-Saved")) {
+        if (onSaved) onSaved();
+        else if (!state.savedHit) {
+          state.savedHit = true;
+          if (state.data) setTimeout(function () { drawCalendar(params.get("date") || A.moscowNow().date); }, 0);
+        }
       }
       return r.json();
     });
@@ -101,25 +104,28 @@
   }
 
   function load() {
-    state.savedHit = false;
+    var saved = false;
+    function loadJSON(url) { return getJSON(url, function () { saved = true; }); }
     return Promise.all([
-      getJSON("data/groups/index.json"),
-      getJSON("data/bells.json"),
-      getJSON("data/zameny/index.json").then(function (index) { state.indexFailed = false; return index; },
-        function () { state.indexFailed = true; return { days: [] }; }),
-      getJSON("status.json").catch(function () { return {}; }),
-      getJSON("data/calendar.json").catch(function () { return {}; }),
-      getJSON("data/news.json").catch(function () { return { items: [] }; }),
-      getJSON("data/teachers.json").catch(function () { return { by_short: {} }; }),
-      getJSON("data/info.json").catch(function () { return null; }),
-      getJSON("data/rooms.json").catch(function () { return {}; })
+      loadJSON("data/groups/index.json"),
+      loadJSON("data/bells.json"),
+      loadJSON("data/zameny/index.json").catch(function () { return null; }),
+      loadJSON("status.json").catch(function () { return {}; }),
+      loadJSON("data/calendar.json").catch(function () { return {}; }),
+      loadJSON("data/news.json").catch(function () { return { items: [] }; }),
+      loadJSON("data/teachers.json").catch(function () { return { by_short: {} }; }),
+      loadJSON("data/info.json").catch(function () { return null; }),
+      loadJSON("data/rooms.json").catch(function () { return {}; })
     ]).then(function (r) {
       // открытая вкладка живёт неделями: новый семестр, перезалитый PDF, поправленная нумерация недель —
       // файлы групп берём заново, если поменялся список групп или наступил новый день
       var sig = JSON.stringify(r[0]) + A.moscowNow().date;
-      if (state.groupsSig && state.groupsSig !== sig) state.schedules = {};
+      // После офлайн-кэша проверяем и расписания групп, даже если их список не менялся.
+      if (state.savedHit || (state.groupsSig && state.groupsSig !== sig)) state.schedules = {};
+      state.savedHit = saved;
       state.groupsSig = sig;
-      state.data = { groups: r[0].groups, validTo: r[0].valid_to, year: r[0].year, bells: r[1], index: r[2], status: r[3], calendar: r[4], news: r[5],
+      state.indexFailed = !r[2];
+      state.data = { groups: r[0].groups, validTo: r[0].valid_to, year: r[0].year, bells: r[1], index: r[2] || { days: [] }, status: r[3], calendar: r[4], news: r[5],
         teachers: r[6], info: r[7], rooms: r[8] };
       state.zamena = {};
       state.loadedAt = A.moscowNow().time;
@@ -265,17 +271,19 @@
     ["dayView", "weekView"].forEach(function (id) { $(id).classList.remove("pending"); });
     hideNext();
     $("list").removeAttribute("aria-busy");
-    $("list").innerHTML = '<div class="empty" role="alert">Расписание временно не загрузилось. Попробуйте ещё раз.</div>';
+    var failure = '<div class="empty"><p role="alert">Не удалось загрузить расписание. Проверьте подключение и попробуйте снова.</p>' +
+      '<button type="button" class="retry-data">Повторить</button></div>';
+    $("list").innerHTML = failure;
     $("cancelled").hidden = true;
     $("images").hidden = true;
     $("base").hidden = true;
     $("shareBtn").hidden = true;
-    $("weekView").innerHTML = '<div class="empty" role="alert">Расписание временно не загрузилось.</div>';
+    $("weekView").innerHTML = failure;
     $("infoBtn").hidden = true;
-    var banner = $("banner");
-    banner.className = "banner warn";
-    banner.innerHTML = '<strong>Не удалось загрузить расписание</strong>Проверьте интернет. <button type="button" class="retry-data">Повторить</button>';
-    banner.hidden = false;
+    $("banner").hidden = true;
+    $("lessonHint").hidden = true;
+    $("unverified").hidden = true;
+    $("status").textContent = "";
   }
 
   // Заголовок дня/недели: при смене — «печатается» по буквам за то же время, что появляются пары
@@ -697,6 +705,13 @@
   });
   $("panelClose").addEventListener("click", function () { $("panel").close(); });
   $("panel").addEventListener("click", function (e) { if (e.target === this) this.close(); });
+  $("whereInput").addEventListener("keydown", function (e) {
+    var panel = $("panel");
+    if (e.key !== "Escape" || e.isComposing || !panel.open || !panel.contains(this)) return;
+    // В поле поиска Chrome перехватывает Escape для очистки строки.
+    e.preventDefault();
+    panel.close();
+  });
   // поиск преподавателя возвращается на своё место (на телефоне он в раскрывающемся блоке)
   $("panel").addEventListener("close", function () {
     if (this.dataset.kind === "where") $("whereD").appendChild($("whereBox"));
@@ -1340,7 +1355,7 @@
   $("panelBody").addEventListener("click", onInstall);
   // интернет вернулся — сразу подтянуть свежее
   window.addEventListener("online", function () {
-    if (state.data) load().then(function () { drawNews(); render(); }).catch(function () { render(); });
+    reloadSchedule(false);
   });
   window.addEventListener("offline", function () { if (state.data) render(); });
   if ("serviceWorker" in navigator) {
@@ -1658,6 +1673,7 @@
   }
 
   function openPicker() {
+    if (!state.data) return;
     state.pickWho = state.teacher ? "teacher" : "group";
     drawPicker();
     var d = $("picker");
@@ -1665,6 +1681,18 @@
     if (!state.teacherList) setTimeout(function () { loadTeacherList().then(function () { if (state.pickWho !== "teacher") drawPicker(); }, function () {}); }, 600);
     // фокус на заголовок, а не на первую группу — иначе 11-П выглядит «уже выбранной»
     var h = $("pickerTitle"); h.tabIndex = -1; h.focus();
+  }
+
+  function showTeacherList() {
+    $("teacherList").textContent = "Загрузка списка…";
+    loadTeacherList().then(function () {
+      drawPicker.animate = state.pickWho === "teacher";
+      drawPicker();
+    }, function () {
+      if (state.pickWho !== "teacher") return;
+      $("teacherList").innerHTML = '<p class="hint small" role="alert">Не удалось загрузить список преподавателей.</p>' +
+        '<button type="button" class="retry-teachers">Повторить</button>';
+    });
   }
 
   $("groupBtn").addEventListener("click", openPicker);
@@ -1675,6 +1703,7 @@
     $("picker").close();
   });
   $("teacherList").addEventListener("click", function (e) {
+    if (e.target.closest(".retry-teachers")) return showTeacherList();
     var b = e.target.closest("button[data-teacher]");
     if (!b) return;
     setTeacher(b.dataset.teacher);
@@ -1684,14 +1713,9 @@
     b.addEventListener("click", function () {
       if (state.pickWho === b.dataset.who) return;
       state.pickWho = b.dataset.who;
-      if (state.pickWho === "teacher" && !state.teacherList) {
-        loadTeacherList().then(function () {
-          drawPicker.animate = state.pickWho === "teacher";
-          drawPicker();
-        });
-      }
       drawPicker.animate = true;
       drawPicker();
+      if (state.pickWho === "teacher" && !state.teacherList) showTeacherList();
     });
   });
   $("picker").addEventListener("cancel", function (e) {
@@ -1835,10 +1859,10 @@
   });
   drawTheme(false);
 
-  $("banner").addEventListener("click", function (e) {
-    if (!e.target.closest(".retry-data")) return;
-    e.preventDefault();
-    load().then(function () { drawNews(); render(true); }, function () { renderFailure(render.token); });
+  ["banner", "list", "weekView"].forEach(function (id) {
+    $(id).addEventListener("click", function (e) {
+      if (e.target.closest(".retry-data")) reloadSchedule(true);
+    });
   });
   $("infoBtn").addEventListener("click", function () {
     state.infoOpen = $("banner").hidden;
@@ -1902,6 +1926,7 @@
   })();
 
   document.querySelector(".tabs").addEventListener("keydown", function (e) {
+    if (!state.group && !state.teacher) return;
     if (["ArrowLeft", "ArrowRight", "Home", "End"].indexOf(e.key) < 0) return;
     var tabs = Array.prototype.slice.call(this.querySelectorAll('button[role="tab"]'));
     var i = tabs.indexOf(document.activeElement);
@@ -1918,7 +1943,7 @@
 
   document.querySelector(".tabs").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-day]");
-    if (!b) return;
+    if (!b || (!state.group && !state.teacher)) return;
     state.offset = b.dataset.day === "week" ? "week" : +b.dataset.day;
     render(true);
     // переключились снизу длинной страницы — вернуть наверх, к заголовку с датой
@@ -1983,52 +2008,74 @@
     setTitle(A.humanDate(params.get("date") || now.date));
   })();
 
-  load().then(function () {
-    drawNews();
-    // преподаватель: ?teacher=… или запомненный выбор (если в ссылке нет группы)
-    var wantedT = params.get("teacher") || (!params.get("group") && store(WHO_KEY) === "teacher" ? store(TEACHER_KEY) : null);
-    if (wantedT) {
-      return allGroups().then(function (gs) {
-        state.teacherList = Teachers.list(gs);
-        if (state.teacherList.indexOf(wantedT) < 0) return openPicker();
-        state.teacher = wantedT;
-        store(WHO_KEY, "teacher");
-        store(TEACHER_KEY, wantedT);
-        var now = A.moscowNow();
-        if (params.get("date")) return render(true);
-        return teacherDay(now.date).then(function (d) {
-          var last = d.items[d.items.length - 1];
-          if (d.weekday === 7 || !last || now.minutes >= last.end) state.offset = nextOffset(now);
+  function initialize(token) {
+    return load().then(function () {
+      if (outdated(token)) return;
+      drawNews();
+      // преподаватель: ?teacher=… или запомненный выбор (если в ссылке нет группы)
+      var wantedT = params.get("teacher") || (!params.get("group") && store(WHO_KEY) === "teacher" ? store(TEACHER_KEY) : null);
+      if (wantedT) {
+        return allGroups().then(function (gs) {
+          if (outdated(token)) return;
+          state.teacherList = Teachers.list(gs);
+          if (state.teacherList.indexOf(wantedT) < 0) return openPicker();
+          state.teacher = wantedT;
+          store(WHO_KEY, "teacher");
+          store(TEACHER_KEY, wantedT);
+          var now = A.moscowNow();
+          if (params.get("date")) return render(true);
+          return teacherDay(now.date).then(function (d) {
+            if (outdated(token)) return;
+            var last = d.items[d.items.length - 1];
+            if (d.weekday === 7 || !last || now.minutes >= last.end) state.offset = nextOffset(now);
+            render(true);
+          });
+        });
+      }
+      promoteStored();  // расписание на сайте уже на новый учебный год — группа тоже
+      var wanted = params.get("group") || store(STORE_KEY);
+      if (state.promoted && wanted === state.promoted.from) {
+        wanted = state.promoted.to;
+        if (wanted) params.set("group", wanted); else params.delete("group");
+        history.replaceState(null, "", "?" + params.toString());
+      }
+      if (wanted && groupInfo(wanted)) {
+        state.group = wanted;
+        store(STORE_KEY, wanted);
+        store(YEAR_KEY, String(studyYearNow()));
+        // пары на сегодня закончились (с учётом замен) — молча открываем «Завтра»
+        return Promise.all([scheduleFor(wanted), params.get("date") ? null : zamenaFor(A.moscowNow().date)]).then(function (r) {
+          if (outdated(token)) return;
+          var s = r[0], now = A.moscowNow();
+          if (!params.get("date")) {
+            var today = build(now.date, s, zamenaForGroup(r[1], wanted));
+            var last = today.items[today.items.length - 1];
+            if (today.weekday === 7 || !last || now.minutes >= last.end) state.offset = nextOffset(now);
+          }
           render(true);
         });
-      });
-    }
-    promoteStored();  // расписание на сайте уже на новый учебный год — группа тоже
-    var wanted = params.get("group") || store(STORE_KEY);
-    if (state.promoted && wanted === state.promoted.from) {
-      wanted = state.promoted.to;
-      if (wanted) params.set("group", wanted); else params.delete("group");
-      history.replaceState(null, "", "?" + params.toString());
-    }
-    if (wanted && groupInfo(wanted)) {
-      state.group = wanted;
-      store(STORE_KEY, wanted);
-      store(YEAR_KEY, String(studyYearNow()));
-      // пары на сегодня закончились (с учётом замен) — молча открываем «Завтра»
-      return Promise.all([scheduleFor(wanted), params.get("date") ? null : zamenaFor(A.moscowNow().date)]).then(function (r) {
-        var s = r[0], now = A.moscowNow();
-        if (!params.get("date")) {
-          var today = build(now.date, s, zamenaForGroup(r[1], wanted));
-          var last = today.items[today.items.length - 1];
-          if (today.weekday === 7 || !last || now.minutes >= last.end) state.offset = nextOffset(now);
-        }
-        render(true);
-      });
-    }
-    openPicker();
-  }).then(function () {
-    startLive();
-  }).catch(function (e) {
-    $("status").textContent = "Не удалось загрузить данные: " + e.message;
-  });
+      }
+      openPicker();
+    }).then(function () {
+      state.initialized = true;
+      startLive();
+    });
+  }
+
+  // Повторяем первоначальный выбор, если данные не загрузились до первого показа.
+  function reloadSchedule(animate) {
+    if (state.reloading) return;
+    var token = render.token;
+    state.reloading = true;
+    var pending = state.initialized ? load().then(function () {
+      drawNews();
+      if (state.group || state.teacher) render(animate);
+    }) : initialize(token);
+    pending.then(function () { state.reloading = false; }, function () {
+      state.reloading = false;
+      renderFailure(token);
+    });
+  }
+
+  reloadSchedule(true);
 })();

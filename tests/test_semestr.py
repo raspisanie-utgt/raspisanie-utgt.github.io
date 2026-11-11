@@ -9,7 +9,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import extract_schedule  # noqa: E402
+import extract_calendar  # noqa: E402
 import semestr  # noqa: E402
+import teachers  # noqa: E402
 
 FIX = Path(__file__).parent / "fixtures"
 SCHED_PDF = FIX / "raspisanie_2026-2027_s1.pdf"
@@ -29,6 +31,24 @@ def data(tmp_path):
 
 def load(p):
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+def test_pdf_readers_close_files(tmp_path, monkeypatch):
+    documents = []
+    real_open = extract_schedule.pdfplumber.open
+
+    def open_pdf(*args, **kwargs):
+        pdf = real_open(*args, **kwargs)
+        documents.append(pdf)
+        return pdf
+
+    monkeypatch.setattr(extract_schedule.pdfplumber, "open", open_pdf)
+    assert extract_schedule.pdf_info(SCHED_PDF)
+    assert extract_schedule.extract_all(SCHED_PDF, tmp_path, CUR, "2026-09-01", "2026-12-31")["groups"]
+    assert extract_calendar.pdf_year(KUG_PDF) == 2026
+    assert extract_calendar.extract(KUG_PDF)["groups"]
+    assert teachers.full_names(FIX / "pedsostav_2026-09-10.pdf")
+    assert len(documents) == 5 and all(pdf.stream.closed for pdf in documents)
 
 
 def site(monkeypatch, pdfs, files, fps=None):

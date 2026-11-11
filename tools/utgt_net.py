@@ -14,6 +14,20 @@ _orig = requests.Session.request
 _https_dead = False
 
 
+def failure_reason(error):
+    if isinstance(error, requests.HTTPError) and error.response is not None:
+        code = error.response.status_code
+        detail = {403: "доступ запрещён", 404: "страница не найдена"}.get(code)
+        return f"HTTP {code}" + (f" ({detail})" if detail else "")
+    if isinstance(error, requests.Timeout):
+        return "истекло время ожидания ответа"
+    if isinstance(error, requests.exceptions.SSLError):
+        return "не удалось проверить HTTPS-сертификат или установить защищённое соединение"
+    if isinstance(error, requests.ConnectionError):
+        return "не удалось установить соединение"
+    return type(error).__name__
+
+
 def ours(url):
     return isinstance(url, str) and url.startswith("https://") and url[8:].split("/")[0].split(":")[0] in (HOST, "www." + HOST)
 
@@ -29,9 +43,9 @@ def _request(self, method, url, *args, **kwargs):
     quick = dict(kwargs, timeout=(CONNECT, t[1] if isinstance(t, tuple) else (t or 60)))
     try:
         return _orig(self, method, url, *args, **quick)
-    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:
         _https_dead = True
-        print(f"https к {HOST} не работает — пробую http")
+        print(f"HTTPS к {HOST}: {failure_reason(error)} — пробую HTTP")
         return _orig(self, method, plain, *args, **kwargs)
 
 

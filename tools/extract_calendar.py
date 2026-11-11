@@ -39,7 +39,8 @@ def configure(year, source):
 
 def pdf_year(pdf_path):
     """Первый год учебного года по заголовку PDF («НА 2026 - 2027 УЧЕБНЫЙ ГОД» -> 2026) или None."""
-    text = " ".join((pdfplumber.open(pdf_path).pages[0].extract_text() or "").split())
+    with pdfplumber.open(pdf_path) as pdf:
+        text = " ".join((pdf.pages[0].extract_text() or "").split())
     m = YEAR_RE.search(text)
     return int(m.group(1)) if m and int(m.group(2)) == int(m.group(1)) + 1 else None
 GROUP_RE = re.compile(r"^[1-4]1-[А-ЯЁ]$")
@@ -244,14 +245,15 @@ def periods_from(cells, holidays, legend=None):
 
 
 def extract(pdf_path):
-    pages = [Page(p) for p in pdfplumber.open(pdf_path).pages]
-    all_cells = {g: pg.cells(g) for pg in pages for g in pg.groups}
-    all_exams = {g: pg.exams(g) for pg in pages for g in pg.groups}
-    all_courseworks = {g: pg.courseworks(g) for pg in pages for g in pg.groups}
-    specialty = {g: s for pg in pages for g, s in pg.specialties().items()}
-    legend = {}
-    for pg in pages:
-        legend.update(pg.legend())
+    with pdfplumber.open(pdf_path) as pdf:
+        pages = [Page(p) for p in pdf.pages]
+        all_cells = {g: pg.cells(g) for pg in pages for g in pg.groups}
+        all_exams = {g: pg.exams(g) for pg in pages for g in pg.groups}
+        all_courseworks = {g: pg.courseworks(g) for pg in pages for g in pg.groups}
+        specialty = {g: s for pg in pages for g, s in pg.specialties().items()}
+        legend = {}
+        for pg in pages:
+            legend.update(pg.legend())
     # праздник = «В» в будний день у большинства групп
     votes = collections.Counter(d for c in all_cells.values() for d, t in c.items()
                                 if t == "В" and d.isoweekday() != 7)

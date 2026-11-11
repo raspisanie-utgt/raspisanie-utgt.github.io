@@ -314,7 +314,8 @@ def group_slug(name):
 
 def pdf_info(pdf_path):
     """Что за расписание: {"semester": 1, "year": "2026/2027", "title": ...} по заголовку PDF; не нашли — None."""
-    text = pdfplumber.open(pdf_path).pages[0].extract_text() or ""
+    with pdfplumber.open(pdf_path) as pdf:
+        text = pdf.pages[0].extract_text() or ""
     m = TITLE_RE.search(" ".join(text.split()))
     if not m or int(m.group(3)) != int(m.group(2)) + 1:
         return None
@@ -338,14 +339,15 @@ def build_group_file(name, days, warnings, source=SOURCE, title=None, anchor=Non
 def extract_all(pdf_path, out_dir, source, valid_from, valid_to, title=None, anchor=None, verified=None, info=None, log=print):
     """Разобрать PDF целиком в out_dir: файлы групп + index.json. Возвращает index.
     verified — какие группы человек сверил (для нового PDF — никакие: сайт честно пишет «не сверено»)."""
-    sheet = Sheet(pdfplumber.open(pdf_path).pages[0])
+    with pdfplumber.open(pdf_path) as pdf:
+        sheet = Sheet(pdf.pages[0])
+        parsed = {name: sheet.group(name) for name in sheet.groups}
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     verified = VERIFIED if verified is None else set(verified)
     teachers = ROOT / "data" / "teachers.json"
     fix_days = teacher_fixer(json.loads(teachers.read_text(encoding="utf-8"))["teachers"] if teachers.exists() else [])
     groups = []
-    parsed = {name: sheet.group(name) for name in sheet.groups}
     fix_subjects = subject_fixer([days for days, _ in parsed.values()])
     pop_path = ROOT / "data" / "popravki.json"
     popravki = json.loads(pop_path.read_text(encoding="utf-8")) if pop_path.exists() else {}
@@ -378,7 +380,8 @@ def main():
     ap.add_argument("--print", dest="show")
     args = ap.parse_args()
     if args.show:
-        days, warnings = Sheet(pdfplumber.open(args.pdf).pages[0]).group(args.show)
+        with pdfplumber.open(args.pdf) as pdf:
+            days, warnings = Sheet(pdf.pages[0]).group(args.show)
         print(json.dumps({"days": days, "warnings": warnings}, ensure_ascii=False, indent=1))
         return 0
     extract_all(args.pdf, OUT, SOURCE, VALID_FROM, VALID_TO, info=pdf_info(args.pdf))

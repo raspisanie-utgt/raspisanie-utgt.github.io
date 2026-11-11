@@ -17,7 +17,7 @@ from urllib.parse import urljoin
 
 import requests
 
-import utgt_net  # noqa: F401,E402 — https к сайту техникума не работает -> http
+import utgt_net  # noqa: E402
 from bs4 import BeautifulSoup
 
 URL = "https://utgt-pgups.ru/novosti.html"
@@ -118,8 +118,13 @@ def main():
     if args.html:
         html = Path(args.html).read_text(encoding="utf-8")
     else:
-        r = requests.get(URL, timeout=60, headers=UA)
-        r.raise_for_status()
+        try:
+            r = requests.get(URL, timeout=60, headers=UA)
+            r.raise_for_status()
+        except requests.RequestException as error:
+            print(f"Страница новостей техникума: {utgt_net.failure_reason(error)}. Сохранённые новости остаются на сайте.",
+                  file=sys.stderr)
+            return 1
         r.encoding = "utf-8"
         html = r.text
     items = parse(html)

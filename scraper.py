@@ -26,7 +26,7 @@ import numpy as np
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
-import utgt_net  # noqa: F401,E402 — https к сайту техникума не работает -> http
+import utgt_net  # noqa: E402
 from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 
@@ -163,10 +163,11 @@ def _runs(mask):
 
 
 def _tesseract(img, psm, lang="rus", extra=()):
-    with tempfile.NamedTemporaryFile(suffix=".png") as f:
-        img.save(f.name)
-        r = subprocess.run(["tesseract", f.name, "-", "-l", lang, "--psm", str(psm), *extra],
-                           capture_output=True, text=True, check=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        image = Path(tmp) / "input.png"
+        img.save(image)
+        r = subprocess.run(["tesseract", str(image), "-", "-l", lang, "--psm", str(psm), *extra],
+                           capture_output=True, encoding="utf-8", check=True)
     return " ".join(r.stdout.split())
 
 
@@ -758,8 +759,13 @@ def main():
     if args.html:
         html = Path(args.html).read_text(encoding="utf-8")
     else:
-        r = session.get(URL, timeout=60, headers=UA)
-        r.raise_for_status()
+        try:
+            r = session.get(URL, timeout=60, headers=UA)
+            r.raise_for_status()
+        except requests.RequestException as error:
+            print(f"Страница замен техникума: {utgt_net.failure_reason(error)}. Сохранённые замены остаются на сайте.",
+                  file=sys.stderr)
+            return 1
         r.encoding = "utf-8"
         html = r.text
     blocks = parse_page(html)
@@ -777,7 +783,9 @@ def main():
                 process_block(b, session, vocab)
             except Exception as e:  # noqa: BLE001
                 failed.append(b["date"])
-                print(f"ОШИБКА {b['date']}: {e!r}", file=sys.stderr)
+                reason = ("не удалось скачать изображение: " + utgt_net.failure_reason(e)
+                          if isinstance(e, requests.RequestException) else f"ошибка обработки изображения: {e!r}")
+                print(f"ОШИБКА {b['date']}: {reason}", file=sys.stderr)
     finally:
         write_index()
         fix_week_anchor()
