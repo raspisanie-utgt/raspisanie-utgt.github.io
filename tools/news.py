@@ -111,12 +111,9 @@ def blocked(item, text):
     return bool(BLOCK.search(item["title"]) or BLOCK.search(text or ""))
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--html")
-    args = ap.parse_args()
-    if args.html:
-        html = Path(args.html).read_text(encoding="utf-8")
+def college_news(html_path):
+    if html_path:
+        html = Path(html_path).read_text(encoding="utf-8")
     else:
         try:
             r = requests.get(URL, timeout=60, headers=UA)
@@ -124,52 +121,78 @@ def main():
         except requests.RequestException as error:
             print(f"Страница новостей техникума: {utgt_net.failure_reason(error)}. Сохранённые новости остаются на сайте.",
                   file=sys.stderr)
-            return 1
+            return None
         r.encoding = "utf-8"
         html = r.text
     items = parse(html)
     if not items:
         print("ВНИМАНИЕ: новости не найдены — возможно, поменялась вёрстка", file=sys.stderr)
-        return 1
+        return None
+    return items
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--html")
+    args = ap.parse_args()
     # текст каждой новости проверяется один раз: решения хранятся в news.json (hidden / checked)
     old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     hidden, checked = set(old.get("hidden", [])), set(old.get("checked", []))
-    for it in items:
-        if it["url"] in checked or args.html:
-            continue
-        try:
-            text = article_text(it["url"])
-        except requests.RequestException:
-            text = ""  # не открылась — решаем по заголовку, проверим текст в следующий раз
-        else:
-            checked.add(it["url"])
-        if blocked(it, text):
-            hidden.add(it["url"])
-    for it in items:
-        if blocked(it, ""):
-            hidden.add(it["url"])
-    for it in items:
-        it["day"] = day_of(it["date"])
+    cached = old.get("cached", {})
+    previous = old.get("items", [])
+    college = college_news(args.html)
+    if college is not None:
+        for it in college:
+            url, text = it["url"], ""
+            if url not in checked and not args.html:
+                try:
+                    text = article_text(url)
+                except requests.RequestException:
+                    pass  # не открылась — решаем по заголовку, проверим текст в следующий раз
+                else:
+                    checked.add(url)
+            if blocked(it, text):
+                hidden.add(url)
+            it["day"] = day_of(it["date"])
+        checked.intersection_update(it["url"] for it in college)
     # посты ВК: текст уже есть, проверяется сразу; если ВК не ответил — остаются прежние посты
     token = os.environ.get("VK_SERVICE_TOKEN")
-    vk = [it for it in old.get("items", []) if it.get("from") == "vk"]
+    vk = None
     if token and not args.html:
         try:
             vk = vk_posts(token)
-        except (requests.RequestException, RuntimeError, KeyError, ValueError) as e:
-            print(f"ВК не ответил: {e}", file=sys.stderr)
+        except (requests.RequestException, RuntimeError, KeyError, TypeError, ValueError) as e:
+            print(f"ВК не ответил ({type(e).__name__}). Сохранённые посты остаются на сайте.", file=sys.stderr)
         else:
             for it in vk:
                 if blocked(it, it.pop("text")):
                     hidden.add(it["url"])
-    items = sorted(items + vk, key=lambda it: it["day"], reverse=True)
-    shown = [it for it in items if it["url"] not in hidden][:LIMIT]
-    urls = {it["url"] for it in items}
-    new = json.dumps({"source": URL, "items": shown, "hidden": sorted(hidden & urls), "checked": sorted(checked & urls)},
+    if college is None and vk is None:
+        return 1
+
+    current = {it["url"] for source in (college, vk) if source is not None for it in source}
+    vk_prefix = f"https://vk.com/wall-{VK_GROUP}_"
+    hidden = {url for url in hidden if url in current or (vk if url.startswith(vk_prefix) else college) is None}
+    if college is None:
+        college = cached.get("college", [it for it in previous if it.get("from") != "vk"])
+    if vk is None:
+        vk = cached.get("vk", [it for it in previous if it.get("from") == "vk"])
+
+    def unique(source):
+        result = {}
+        for it in sorted(source, key=lambda it: it.get("day", ""), reverse=True):
+            if it["url"] not in hidden:
+                result.setdefault(it["url"], it)
+        return list(result.values())
+
+    college, vk = unique(college), unique(vk)
+    shown = unique(college + vk)[:LIMIT]
+    new = json.dumps({"source": URL, "items": shown, "hidden": sorted(hidden), "checked": sorted(checked),
+                      "cached": {"college": college[:LIMIT], "vk": vk[:LIMIT]}},
                      ensure_ascii=False, indent=1)
     if not OUT.exists() or OUT.read_text(encoding="utf-8") != new:
         OUT.write_text(new, encoding="utf-8")
-    print(f"новостей: {len(shown)} (скрыто: {len(hidden & urls)}), последняя: {shown[0]['date'] if shown else '—'}")
+    print(f"новостей: {len(shown)} (скрыто: {len(hidden)}), последняя: {shown[0]['date'] if shown else '—'}")
     return 0
 
 
