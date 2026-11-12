@@ -2,6 +2,9 @@
 import sys
 from pathlib import Path
 
+import pytest
+import requests
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import tg_feedback as T  # noqa: E402
 
@@ -97,6 +100,32 @@ def test_run_without_updates_does_nothing():
     bot, repo = FakeBot([]), FakeRepo()
     assert T.run(bot, repo, log=lambda *_: None) == 0
     assert repo.issues == [] and len(bot.calls) == 1
+
+
+def test_queue_delay_logs_only_age(monkeypatch):
+    monkeypatch.setattr(T.time, "time", lambda: 2000)
+    private = dict(msg("ошибка"), date=1300)
+    group = dict(msg("чужое"), chat={"type": "group"}, date=100)
+    logs = []
+    T.run(FakeBot([{"update_id": 1, "message": private}, {"update_id": 2, "message": group}]),
+          FakeRepo(), log=logs.append)
+    assert logs[0] == "самое старое входящее сообщение ждало 700 с до опроса"
+
+
+def test_telegram_transport_error_does_not_expose_token():
+    token = "test-secret"
+
+    class Session:
+        def post(self, url, **options):
+            response = requests.Response()
+            response.status_code = 403
+            response.url = url
+            return response
+
+    with pytest.raises(RuntimeError, match=r"^Telegram getUpdates: HTTP 403$") as failure:
+        T.Bot(token, session=Session()).call("getUpdates")
+    assert token not in str(failure.value)
+    assert failure.value.__suppress_context__
 
 
 def test_main_without_token_is_noop(monkeypatch, capsys):
