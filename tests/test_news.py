@@ -41,7 +41,8 @@ def test_official_vk_wall_updates_during_college_outage(monkeypatch, tmp_path, c
     monkeypatch.setenv("VK_SERVICE_TOKEN", "unit-test-placeholder")
     date = int(datetime(2026, 11, 12, tzinfo=timezone.utc).timestamp())
     posts = [{"id": i, "date": date, "text": f"Студенческая новость {i}"} for i in range(2, 13)]
-    posts += [posts[0], {"id": 13, "date": date, "text": "Реклама", "marked_as_ads": 1},
+    posts += [None, {"id": 15, "date": "invalid", "text": "Повреждённый пост"},
+              posts[0], {"id": 13, "date": date, "text": "Реклама", "marked_as_ads": 1},
               {"id": 14, "date": date, "text": "Встреча со студентами\n" + "новость " * 30 + " БПЛА"}]
 
     def get(url, **kwargs):
@@ -67,6 +68,10 @@ def test_official_vk_wall_updates_during_college_outage(monkeypatch, tmp_path, c
     assert old_vk["url"] not in urls and "https://vk.com/wall-214137_13" not in urls
     assert news.main() == 0
     assert json.loads(path.read_text(encoding="utf-8")) == updated
+    before = path.read_bytes()
+    posts[:] = [None, {"id": 15, "date": "invalid", "text": "Повреждённый пост"}]
+    assert news.main() == 1
+    assert path.read_bytes() == before
 
     def outage(url, **kwargs):
         raise requests.ConnectionError("unit-test-placeholder")
