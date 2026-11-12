@@ -23,6 +23,9 @@
   <script src="calendar.js" defer></script>
   <script src="teachers.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="appearance-rules.js" defer></script>
+  <script src="appearance-renderer.js" defer></script>
+  <script src="appearance.js" defer></script>
   <script src="desktop.js" defer></script>
   <script>
     // Данные начинают грузиться сразу, вместе со стилями и скриптами, а не после них: на медленном
@@ -48,6 +51,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="groups.css">
   <link rel="stylesheet" href="desktop.css" media="(min-width: 1024px)">
+  <link rel="stylesheet" href="appearance.css">
 </head>
 <body>
   <main class="wrap">
@@ -59,6 +63,9 @@
           <button type="button" id="groupBtn" class="group-chip" aria-haspopup="dialog">
           <span id="groupName">Группа</span><span class="chev" aria-hidden="true">▾</span>
         </button><button type="button" id="themeBtn" class="theme-btn" aria-label="Тема оформления"><span class="ico" aria-hidden="true"></span><span class="lbl"></span></button>
+          <button type="button" id="appearanceBtn" class="theme-btn appearance-button" aria-label="Оформление" title="Оформление" aria-haspopup="dialog" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c0 6-4 10-10 10 6 0 10 4 10 10 0-6 4-10 10-10-6 0-10-4-10-10Z"/></svg>
+          </button>
         </div>
         <p class="eyebrow">УТЖТ <span id="week"></span></p>
         <p class="specialty" id="specialty"></p>
@@ -232,5 +239,30 @@
     </form>
   </dialog>
 
+  <dialog id="appearanceDialog" class="appearance-dialog" aria-labelledby="appearanceTitle">
+    <form method="dialog" id="appearanceForm">
+      <div class="appearance-head">
+        <h2 id="appearanceTitle">Оформление</h2>
+        <button type="submit" class="appearance-close" aria-label="Закрыть">✕</button>
+      </div>
+      <label>Режим <select name="mode">
+        <option value="weather">По погоде</option><option value="season">По времени года</option>
+        <option value="manual">Вручную</option><option value="off">Без эффектов</option>
+      </select></label>
+      <label id="appearanceManual">Эффект <select name="manual">
+        <option value="snow">Снег</option><option value="rain">Дождь</option>
+        <option value="leaves">Осенние листья</option><option value="petals">Цветы и лепестки</option>
+        <option value="lights">Огоньки и звёзды</option><option value="none">Нет</option>
+      </select></label>
+      <label for="appearanceRange">Интенсивность</label>
+      <output id="appearanceIntensity" for="appearanceRange"></output>
+      <input type="range" id="appearanceRange" name="intensity" min="0" max="100">
+      <label class="appearance-check"><input type="checkbox" name="holidays"> Праздничные украшения</label>
+      <label class="appearance-check"><input type="checkbox" name="accumulation"> Снег на карточках и кнопках</label>
+      <label class="appearance-check"><input type="checkbox" name="physics"> Стряхивать снег при нажатии</label>
+      <p id="appearanceHoliday" hidden></p>
+      <p id="appearanceWeather" hidden>Погода в Ухте по данным <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>. Без связи используются эффекты по времени года.</p>
+    </form>
+  </dialog>
 </body>
 </html>
