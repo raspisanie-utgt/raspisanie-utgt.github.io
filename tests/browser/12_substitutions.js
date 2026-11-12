@@ -5,6 +5,9 @@ const date = lastZ();
 const order = read('data/zameny/' + date + '.json');
 const group = order.all_changes['11-А'] ? '11-А' : Object.keys(order.all_changes)[0];
 const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
+const targetOffset = previous.getUTCDay() === 0 ? 2 : 1;
+if (targetOffset === 2) previous.setUTCDate(previous.getUTCDate() - 1);
+const previousDate = previous.toISOString().slice(0, 10);
 
 (async () => {
   const browser = await launch();
@@ -22,6 +25,7 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
       let orderStatus = 200;
       let indexed = true;
       let savedIndex = false;
+      let correctedFile = order.images[0].file + '?review=2';
       try {
         await page.clock.setFixedTime(previous);
         await page.route('**/data/zameny/index.json', async route => {
@@ -31,7 +35,6 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
           index.days = index.days.filter(day => day !== date);
           await route.fulfill({ json: index, headers: savedIndex ? { 'X-Utgt-Saved': '1' } : {} });
         });
-        const correctedFile = order.images[0].file + '?review=2';
         await page.route('**/data/zameny/' + date + '.json', route => {
           if (orderStatus !== 200) return route.fulfill({ status: orderStatus });
           if (!corrected) return route.continue();
@@ -40,7 +43,7 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
         });
         await page.goto(URL + '?group=' + encodeURIComponent(group));
         await page.locator('#list .lesson, #list .empty').first().waitFor();
-        const tomorrow = page.locator('.tabs button[data-day="1"]:visible').first();
+        const tomorrow = page.locator('.tabs button[data-day="' + targetOffset + '"]:visible').first();
         const photo = page.locator('#imageList a[href="data/zameny/' + order.images[0].file + '"]');
         assert.equal(await photo.count(), 0);
         published = true;
@@ -55,11 +58,11 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
         const correctedPhoto = page.locator('#imageList a[href="data/zameny/' + correctedFile + '"]');
         const today = page.locator('.tabs button[data-day="0"]:visible').first();
         async function revisit(ms, expectedRequest) {
-          await today.click();
           await page.clock.setFixedTime(new Date(previous.getTime() + ms));
           const response = page.waitForResponse(expectedRequest, { timeout: 5000 });
           await tomorrow.click();
-          await response;
+          await (await response).finished();
+          await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
         }
         const indexResponse = response => response.url().endsWith('/data/zameny/index.json');
         const orderResponse = response => response.url().endsWith('/data/zameny/' + date + '.json');
@@ -82,6 +85,27 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
         await correctedPhoto.waitFor({ timeout: 5000 });
         await page.reload();
         await tomorrow.click();
+        await correctedPhoto.waitFor({ timeout: 5000 });
+
+        // Keep the refresh for the other day in flight while the selection changes.
+        const oldDayFile = read('data/zameny/index.json').days.includes(previousDate) ? previousDate + '.json' : 'index.json';
+        let release;
+        const gate = new Promise(resolve => { release = resolve; });
+        const oldDayPath = '/data/zameny/' + oldDayFile;
+        await page.route('**' + oldDayPath, async route => {
+          await gate;
+          await route.fallback();
+        }, { times: 1 });
+        await page.clock.setFixedTime(new Date(previous.getTime() + 250000));
+        const started = page.waitForRequest(request => request.url().endsWith(oldDayPath), { timeout: 5000 });
+        try {
+          await today.click();
+          await started;
+          correctedFile = order.images[0].file + '?review=3';
+          await tomorrow.click();
+        } finally {
+          release();
+        }
         await page.locator('#imageList a[href="data/zameny/' + correctedFile + '"]').waitFor({ timeout: 5000 });
       } catch (error) {
         problems.push(width + 'px: ' + String(error).split('\n')[0]);
