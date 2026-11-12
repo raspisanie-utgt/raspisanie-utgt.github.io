@@ -24,12 +24,14 @@ test('appearance settings default to off, persist and tolerate invalid stored da
 
 test('mode, Moscow date boundaries, holidays and overlap priority', () => {
   assert.equal(rules.monthDay(new Date('2026-08-31T21:00:00Z')), '09-01');
-  for (const [day, effect] of [['12-01', 'snow'], ['03-01', 'petals'], ['06-01', 'sun'], ['09-01', 'leaves']]) {
+  for (const [day, effect] of [['12-01', 'none'], ['03-01', 'petals'], ['06-01', 'sun'], ['09-01', 'leaves']]) {
     assert.equal(select('season', day).effect, effect);
   }
-  for (const effect of ['snow', 'rain', 'leaves', 'petals', 'lights', 'none']) {
+  for (const effect of ['rain', 'leaves', 'petals', 'lights', 'none']) {
     assert.equal(select('manual', '01-07', { manual: effect }).effect, effect);
   }
+  assert.equal(select('manual', '01-07', { manual: 'snow' }).effect, 'none');
+  assert.equal(select('manual', '01-07', { manual: 'snow' }).holiday[0], 'christmas');
   assert.equal(select('season', '12-24').holiday[0], 'new-year');
   assert.equal(select('season', '01-05').holiday[0], 'new-year');
   assert.equal(select('season', '01-06').holiday[0], 'christmas');
@@ -44,13 +46,13 @@ test('mode, Moscow date boundaries, holidays and overlap priority', () => {
 
 test('weather mapping and seasonal fallback for missing or unknown codes', () => {
   const map = (weather_code, is_day = 1) => select('weather', '01-10', {}, rules.parseWeather({ weather_code, is_day })).effect;
-  assert.equal(map(85), 'snow');
+  assert.equal(map(85), 'none');
   assert.equal(map(67), 'rain');
   assert.equal(map(99), 'rain');
   assert.equal(map(0), 'sun');
   assert.equal(map(1, 0), 'lights');
   assert.equal(map(48), 'cloud');
-  assert.equal(map(500), 'snow');
+  assert.equal(map(500), 'none');
 });
 
 test('weather calls coalesce, reuse cache, skip offline and back off after failure', async () => {

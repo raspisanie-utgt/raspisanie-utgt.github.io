@@ -2,26 +2,24 @@ const assert = require('node:assert/strict');
 const { URL, launch, page, report } = require('./lib');
 
 const sizes = [[360, 780], [412, 915], [2560, 1080], [3440, 1440]];
-const snowColor = '#c5e1ff';
+
 
 async function probe(browser, w, h) {
   const p = await page(browser, { w, h, mob: w < 700, dark: w === 412 || w === 2560 });
   const problems = [];
   try {
-    await p.addInitScript(color => {
-      window.appearanceProbe = { frames: 0, shedding: 0, snow: 0, rain: 0 };
-      const count = (method, key, paint) => {
+    await p.addInitScript(() => {
+      window.appearanceProbe = { frames: 0, rain: 0 };
+      const count = (method, key) => {
         const original = CanvasRenderingContext2D.prototype[method];
         CanvasRenderingContext2D.prototype[method] = function (...args) {
-          if (this.canvas.classList.contains('appearance-layer') && (!paint || this.fillStyle === paint)) window.appearanceProbe[key]++;
+          if (this.canvas.classList.contains('appearance-layer')) window.appearanceProbe[key]++;
           return original.apply(this, args);
         };
       };
       count('clearRect', 'frames');
-      count('arc', 'shedding', color);
-      count('fill', 'snow', '#dcecff');
       count('stroke', 'rain');
-    }, snowColor);
+    });
     let weatherCalls = 0;
     await p.route('https://api.open-meteo.com/**', route => {
       weatherCalls++;
@@ -53,6 +51,8 @@ async function probe(browser, w, h) {
       return [r.left, r.top, r.right, r.bottom, document.documentElement.clientWidth, innerHeight];
     });
     assert.ok(bounds[0] >= -1 && bounds[1] >= -1 && bounds[2] <= bounds[4] + 1 && bounds[3] <= bounds[5] + 1);
+    assert.equal(await layer.count(), 0, 'manual snow stays disabled');
+    await dialog.locator('[name="manual"]').selectOption('leaves');
     await close();
     await layer.waitFor();
     assert.equal(await layer.evaluate(el => getComputedStyle(el).pointerEvents), 'none');
@@ -63,24 +63,6 @@ async function probe(browser, w, h) {
     await p.clock.runFor(1000);
     const after = await counts();
     assert.ok(after.frames > before.frames && after.frames - before.frames <= 37, 'frame rate is bounded');
-
-    // Advance the page clock to grow a visible pile without a slow real-time wait.
-    await lesson.evaluate(el => el.scrollIntoView({ block: 'center' }));
-    await p.clock.runFor(5000);
-    assert.ok((await counts()).snow > 0, 'snow on card edges');
-    await lesson.click();
-    await p.clock.runFor(300);
-    assert.ok((await counts()).shedding > 0, 'click sheds accumulated snow');
-    if (w === 360) {
-      const summary = p.locator('#useful summary');
-      // Focus a visible summary and let the intersection observer register its edge.
-      await summary.evaluate(el => el.scrollIntoView({ block: 'center' }));
-      await p.clock.runFor(1200);
-      const previous = (await counts()).shedding;
-      await summary.click();
-      await p.clock.runFor(350);
-      assert.ok((await counts()).shedding > previous, 'expanding a panel sheds snow');
-    }
 
     await p.evaluate(() => {
       Object.defineProperty(document, 'hidden', { configurable: true, value: true });
@@ -97,7 +79,7 @@ async function probe(browser, w, h) {
     assert.ok((await counts()).frames > paused);
     await p.emulateMedia({ reducedMotion: 'reduce' });
     await p.clock.runFor(150);
-    assert.equal(await layer.count(), 0, 'reduced motion suppresses snowfall');
+    assert.equal(await layer.count(), 0, 'reduced motion suppresses falling leaves');
     await p.emulateMedia({ reducedMotion: 'no-preference' });
     await p.reload();
     await settings.click();
