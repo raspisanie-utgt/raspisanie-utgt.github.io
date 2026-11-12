@@ -52,7 +52,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           python -m pytest tests -q
-          node --test tests/agenda.test.js tests/calendar.test.js tests/teachers.test.js
+          node --test tests/*.test.js
 
       - name: Проверить страницу замен
         id: scrape
