@@ -123,13 +123,20 @@ def vk_parse(posts):
     return items
 
 
+class VKAPIError(RuntimeError):
+    def __init__(self, error):
+        code = error.get("error_code") if isinstance(error, dict) else None
+        self.code = code if type(code) is int and 0 < code <= 9999 else None
+        super().__init__("Ошибка API ВК")
+
+
 def vk_posts(token):
     r = requests.get("https://api.vk.com/method/wall.get", timeout=60, headers=UA,
                      params={"owner_id": -VK_GROUP, "count": 15, "v": "5.199", "access_token": token})
     r.raise_for_status()
     data = r.json()
     if "error" in data:
-        raise RuntimeError(data["error"].get("error_msg", "ошибка ВК"))
+        raise VKAPIError(data["error"])
     return vk_parse(data["response"]["items"])
 
 
@@ -184,10 +191,15 @@ def main():
     # посты ВК: текст уже есть, проверяется сразу; если ВК не ответил — остаются прежние посты
     token = os.environ.get("VK_SERVICE_TOKEN")
     vk = None
-    if token and not args.html:
+    if not args.html and not token:
+        print("ВК: обновление пропущено — не настроен VK_SERVICE_TOKEN.", file=sys.stderr)
+    elif token and not args.html:
         try:
             vk = vk_posts(token)
-        except (requests.RequestException, RuntimeError, KeyError, TypeError, ValueError) as e:
+        except VKAPIError as e:
+            code = f", код {e.code}" if e.code is not None else ""
+            print(f"ВК не ответил (ошибка API{code}). Сохранённые посты остаются на сайте.", file=sys.stderr)
+        except (requests.RequestException, KeyError, TypeError, ValueError) as e:
             print(f"ВК не ответил ({type(e).__name__}). Сохранённые посты остаются на сайте.", file=sys.stderr)
         else:
             for it in vk:
@@ -196,6 +208,7 @@ def main():
     if college is None and vk is None:
         return 1
 
+    vk_updated = vk is not None
     current = {it["url"] for source in (college, vk) if source is not None for it in source}
     vk_prefix = f"https://vk.com/wall-{VK_GROUP}_"
     hidden = {url for url in hidden if url in current or (vk if url.startswith(vk_prefix) else college) is None}
@@ -213,6 +226,8 @@ def main():
 
     college, vk = unique(college), unique(vk)
     shown = unique(college + vk)[:LIMIT]
+    if vk_updated:
+        print(f"ВК: доступно {len(vk)} постов после фильтрации, в ленте {sum(it.get('from') == 'vk' for it in shown)}.")
     new = json.dumps({"source": URL, "items": shown, "hidden": sorted(hidden), "checked": sorted(checked),
                       "cached": {"college": college[:LIMIT], "vk": vk[:LIMIT]}},
                      ensure_ascii=False, indent=1)
