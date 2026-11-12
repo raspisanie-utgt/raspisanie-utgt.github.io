@@ -83,7 +83,11 @@
     if (pre) delete window.__pre[url];
     if (pre && Date.now() - window.__preAt > 30000) pre = null;
     return (pre || fetch(url, { cache: "no-cache" })).then(function (r) {
-      if (!r.ok) throw new Error(url + ": " + r.status);
+      if (!r.ok) {
+        var error = new Error(url + ": " + r.status);
+        error.status = r.status;
+        throw error;
+      }
       // ответ из сохранённой копии (нет сети или она слишком медленная) — показать это над расписанием
       if (r.headers.get("X-Utgt-Saved")) {
         if (onSaved) onSaved();
@@ -172,20 +176,29 @@
     state.orderRefreshPending = true;
     if (indexed) state.orderReadAt[date] = Date.now();
     var path = indexed ? "data/zameny/" + date + ".json" : "data/zameny/index.json";
-    getJSON(path, function () { saved = state.savedHit = true; }).then(function (result) {
-      if (saved || state.data !== data || !result) return;
-      if (indexed) {
-        if (result.date === date && JSON.stringify(result) !== JSON.stringify(current)) {
-          state.zamena[date] = result;
-          render();
-        }
-        return;
-      }
-      if (!Array.isArray(result.days)) return;
+    function markSaved() { saved = state.savedHit = true; }
+    function updateIndex(result) {
+      if (saved || state.data !== data || !result || !Array.isArray(result.days)) return;
       var changed = state.indexFailed || result.days.join() !== data.index.days.join();
       data.index = result;
       state.indexFailed = false;
+      if (result.days.indexOf(date) < 0) {
+        delete state.zamena[date];
+        delete state.orderReadAt[date];
+      }
       if (changed) render();
+    }
+    getJSON(path, markSaved).then(function (result) {
+      if (saved || state.data !== data || !result) return;
+      if (!indexed) return updateIndex(result);
+      if (result.date === date && JSON.stringify(result) !== JSON.stringify(current)) {
+        state.zamena[date] = result;
+        render();
+      }
+    }, function (error) {
+      if (indexed && error.status === 404 && state.data === data) {
+        return getJSON("data/zameny/index.json", markSaved).then(updateIndex);
+      }
     }).catch(function () {}).then(function () { state.orderRefreshPending = false; });
   }
 

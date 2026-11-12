@@ -19,19 +19,21 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
       let published = false;
       let freshIndexRequests = 0;
       let corrected = false;
+      let orderStatus = 200;
+      let indexed = true;
+      let savedIndex = false;
       try {
         await page.clock.setFixedTime(previous);
         await page.route('**/data/zameny/index.json', async route => {
-          if (published) {
-            freshIndexRequests++;
-            return route.continue();
-          }
+          if (published) freshIndexRequests++;
+          if (published && indexed) return route.continue();
           const index = read('data/zameny/index.json');
           index.days = index.days.filter(day => day !== date);
-          await route.fulfill({ json: index });
+          await route.fulfill({ json: index, headers: savedIndex ? { 'X-Utgt-Saved': '1' } : {} });
         });
         const correctedFile = order.images[0].file + '?review=2';
         await page.route('**/data/zameny/' + date + '.json', route => {
+          if (orderStatus !== 200) return route.fulfill({ status: orderStatus });
           if (!corrected) return route.continue();
           const images = [{ ...order.images[0], file: correctedFile }, ...order.images.slice(1)];
           return route.fulfill({ json: { ...order, images } });
@@ -50,6 +52,34 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
         await page.clock.setFixedTime(new Date(previous.getTime() + 31000));
         await tomorrow.click();
         await page.locator('#imageList a[href="data/zameny/' + correctedFile + '"]').waitFor({ timeout: 5000 });
+        const correctedPhoto = page.locator('#imageList a[href="data/zameny/' + correctedFile + '"]');
+        const today = page.locator('.tabs button[data-day="0"]:visible').first();
+        async function revisit(ms, expectedRequest) {
+          await today.click();
+          await page.clock.setFixedTime(new Date(previous.getTime() + ms));
+          const response = page.waitForResponse(expectedRequest, { timeout: 5000 });
+          await tomorrow.click();
+          await response;
+        }
+        const indexResponse = response => response.url().endsWith('/data/zameny/index.json');
+        const orderResponse = response => response.url().endsWith('/data/zameny/' + date + '.json');
+        orderStatus = 503;
+        await revisit(62000, orderResponse);
+        await correctedPhoto.waitFor({ timeout: 5000 });
+        orderStatus = 404;
+        await revisit(93000, indexResponse);
+        await correctedPhoto.waitFor({ timeout: 5000 });
+        indexed = false;
+        savedIndex = true;
+        await revisit(124000, indexResponse);
+        await correctedPhoto.waitFor({ timeout: 5000 });
+        savedIndex = false;
+        await revisit(155000, indexResponse);
+        await correctedPhoto.waitFor({ state: 'detached', timeout: 5000 });
+        indexed = true;
+        orderStatus = 200;
+        await revisit(186000, indexResponse);
+        await correctedPhoto.waitFor({ timeout: 5000 });
         await page.reload();
         await tomorrow.click();
         await page.locator('#imageList a[href="data/zameny/' + correctedFile + '"]').waitFor({ timeout: 5000 });
@@ -62,6 +92,6 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
   } finally {
     await browser.close();
   }
-  report('Substitutions published while the page was open', problems);
+  report('Substitutions published, corrected, withdrawn, and restored in an open tab', problems);
   if (problems.length) process.exitCode = 1;
 })().catch(error => { console.error(error); process.exitCode = 1; });
