@@ -1,0 +1,21 @@
+.room-survey {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  overflow-wrap: anywhere;
+}
+.room-survey h2 { font-size: 16px; margin: 0 0 8px; }
+.room-survey p { margin: 8px 0; font-size: 13px; color: var(--muted); }
+.room-survey label, .room-survey small { display: block; margin: 6px 0; }
+.room-survey label { font-size: 13px; }
+.room-survey input, .room-survey button {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+}
+.room-survey input { box-sizing: border-box; max-width: 100%; width: 120px; }
+.room-survey input[aria-invalid="true"] { border-color: #bc634b; }
+.room-survey button { cursor: pointer; font-size: 13px; }
+.room-survey button:disabled { opacity: .65; cursor: default; }
+.room-survey-actions { display: flex; flex-wrap: wrap; gap: 6px; }

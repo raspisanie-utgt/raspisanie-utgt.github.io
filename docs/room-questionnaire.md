@@ -1,0 +1,9 @@
+# Classroom questionnaire
+
+The questionnaire is a read-only preview. The browser never sends or saves typed answers. It only stores dismissal preferences. The submit control stays disabled and the form cancels all submission events. It has no submission endpoint.
+
+Only verified base timetables in the current semester supply questions. Each question identifies a group’s subject, weekday, lesson numbers, and week when applicable. A room already in the timetable or an ambiguous overlapping slot is ineligible. The 21-С Friday lesson marked `?` is an example of a room still awaiting confirmation. The build stamps the group index with a schedule revision so periodic reloads discard cached rooms after a correction.
+
+Before enabling submissions, verify a private moderation queue whose records contain only a canonical public timetable slot reference, a normalized classroom number, and moderation state. The endpoint must validate the current timetable version and reject slots that now have a known room. Deduplicate identical slot-and-room pairs atomically. Treat repeated requests for the same suggestion as one record. A moderator confirms the room from a reliable source before applying a normal timetable correction. Verify storage access, retention, log redaction, abuse controls without retained IP addresses where possible, and a clear success or retry state. There must be no path from an unreviewed suggestion to the timetable.
+
+The existing privacy notice should add one sentence for the preview stating that dismissal settings stay in the browser and classroom answers entered in preview are neither transmitted nor saved. Before enabling submissions, update that notice with the verified endpoint operator, the exact room and slot fields retained, moderation access, retention, and any technical request logging the provider performs.

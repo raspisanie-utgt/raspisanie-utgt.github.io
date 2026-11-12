@@ -60,7 +60,16 @@ def minify_assets(out):
 
 def inline_preload(out):
     """В index.html — какие файлы у групп и на какие дни есть замены: страница начинает грузить их сразу."""
-    groups = json.loads((out / "data" / "groups" / "index.json").read_text(encoding="utf-8"))["groups"]
+    group_dir = out / "data" / "groups"
+    group_index = group_dir / "index.json"
+    index = json.loads(group_index.read_text(encoding="utf-8"))
+    groups = index["groups"]
+    digest = hashlib.sha256()
+    for group in groups:
+        digest.update(hashlib.sha256((group_dir / group["file"]).read_bytes()).digest())
+    # A room-only correction must invalidate cached schedules even if the group list is identical.
+    index["schedule_revision"] = digest.hexdigest()[:16]
+    group_index.write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     days = json.loads((out / "data" / "zameny" / "index.json").read_text(encoding="utf-8"))["days"]
     files = {g["group"]: g["file"] for g in groups}
     page = out / "index.html"
