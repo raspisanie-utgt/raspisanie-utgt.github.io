@@ -22,6 +22,7 @@
   <script src="agenda.js" defer></script>
   <script src="calendar.js" defer></script>
   <script src="teachers.js" defer></script>
+  <script src="room-survey.js" defer></script>
   <script src="app.js" defer></script>
   <script src="appearance-rules.js" defer></script>
   <script src="appearance-renderer.js" defer></script>
@@ -52,6 +53,7 @@
   <link rel="stylesheet" href="groups.css">
   <link rel="stylesheet" href="desktop.css" media="(min-width: 1024px)">
   <link rel="stylesheet" href="appearance.css">
+  <link rel="stylesheet" href="room-survey.css">
 </head>
 <body>
   <main class="wrap">
@@ -148,6 +150,20 @@
     <!-- плитки разделов — только на компьютере (desktop.css), на телефоне те же разделы ниже, раскрывающимися блоками -->
     <nav id="tiles" class="tiles" aria-label="Разделы"></nav>
 
+    <section id="roomSurvey" class="room-survey" aria-labelledby="roomSurveyTitle" hidden>
+      <h2 id="roomSurveyTitle">Уточнить кабинет</h2>
+      <button type="button" id="roomSurveyOpen" aria-controls="roomSurveyForm" aria-expanded="false">Показать вопросы</button>
+      <form id="roomSurveyForm" hidden novalidate>
+        <p>Укажите обычный кабинет по расписанию. Можно ответить на часть вопросов.</p>
+        <div id="roomSurveyFields"></div>
+        <p>Предпросмотр. Отправка пока недоступна.</p>
+        <div class="room-survey-actions">
+          <button type="submit" disabled>Отправить</button>
+          <button type="button" id="roomSurveySkip">Пропустить</button>
+          <button type="button" id="roomSurveyNever">Больше не показывать</button>
+        </div>
+      </form>
+    </section>
     <details id="news" class="news" hidden>
       <summary>Новости техникума</summary>
       <ul id="newsList"></ul>

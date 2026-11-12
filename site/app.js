@@ -5,6 +5,7 @@
   var STORE_KEY = "utgt-group", WHO_KEY = "utgt-who", TEACHER_KEY = "utgt-teacher", LANG_KEY = "utgt-lang", YEAR_KEY = "utgt-group-year";
   var state = { weekOpen: {}, infoOpen: null, offset: 0, data: null, zamena: {}, group: null, teacher: null, schedules: {}, open: {}, pickWho: "group" };
   var params = new URLSearchParams(location.search);
+  var roomSurvey = window.UTGTRoomSurvey ? window.UTGTRoomSurvey.mount(window, document) : { select: function () {}, update: function () {} };
 
   // Старые браузеры без <dialog> (iOS до 15.4): окна открываются и закрываются атрибутом open
   if (typeof HTMLDialogElement !== "function") {
@@ -129,7 +130,7 @@
       state.savedHit = saved;
       state.groupsSig = sig;
       state.indexFailed = !r[2];
-      state.data = { groups: r[0].groups, validTo: r[0].valid_to, year: r[0].year, bells: r[1], index: r[2] || { days: [] }, status: r[3], calendar: r[4], news: r[5],
+      state.data = { groups: r[0].groups, validFrom: r[0].valid_from, validTo: r[0].valid_to, year: r[0].year, bells: r[1], index: r[2] || { days: [] }, status: r[3], calendar: r[4], news: r[5],
         teachers: r[6], info: r[7], rooms: r[8] };
       state.zamena = {};
       state.orderReadAt = {};
@@ -291,6 +292,7 @@
       }, 2500);
     }
     var g = state.group;
+    roomSurvey.select(state.teacher ? null : g);
     drawCalendar(params.get("date") || now.date);
     drawUseful(now);
     drawStrip(now);
@@ -314,6 +316,7 @@
     Promise.all([scheduleFor(g), zamenaFor(date)]).then(function (r) {
       if (outdated(token)) return;
       var schedule = r[0], z = zamenaForGroup(r[1], g);
+      roomSurvey.update(state.savedHit ? null : schedule, now.date, state.data);
       var ag = build(date, schedule, z);
       if (date === now.date) A.markNow(ag, now.minutes);
       draw(ag, z, date, schedule, now);
@@ -322,6 +325,7 @@
 
   function renderFailure(token) {
     if (outdated(token)) return;
+    roomSurvey.update(null);
     clearTimeout(render.safety);
     ["dayView", "weekView"].forEach(function (id) { $(id).classList.remove("pending"); });
     hideNext();
@@ -402,6 +406,7 @@
     Promise.all([scheduleFor(g)].concat(dates.map(zamenaFor))).then(function (r) {
       if (outdated(token)) return;
       var schedule = r[0];
+      roomSurvey.update(state.savedHit ? null : schedule, now.date, state.data);
       var days = dates.map(function (d, i) { return build(d, schedule, zamenaForGroup(r[i + 1], g)); });
       document.title = "Расписание УТЖТ · " + g;
       typeInto($("groupName"), g);

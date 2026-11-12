@@ -24,7 +24,7 @@
     side = document.createElement("aside");
     side.className = "desk-side";
     side.appendChild(images);
-    ["#tiles", "#news", "#whereD", "#useful", ".foot"].forEach(function (s) {
+    ["#tiles", "#roomSurvey", "#news", "#whereD", "#useful", ".foot"].forEach(function (s) {
       var el = wrap.querySelector(s);
       if (el) side.appendChild(el);
     });
