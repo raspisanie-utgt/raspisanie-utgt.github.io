@@ -79,6 +79,9 @@ def test_ocr_finds_11A(name):
     got = [(c["lessons"], c["subject"], c["room"]) for c in scraper.group_changes(t, "11-А")]
     assert got == EXPECTED_11A[name]
     assert not any(r["uncertain"] for r in t["rows"])
+    if name == "19.10.2026.png":
+        assert any(r["lessons"] == [7, 8] and r["subject"] == "География"
+                   for r in scraper.group_changes(t, "11-Д"))
 
 
 @needs_tesseract

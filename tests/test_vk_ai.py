@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 import json
 import os
 import sys
@@ -233,16 +234,38 @@ class WorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)
             original = folder / f"{DATE}.json"
-            original.write_bytes(b'{"manual":"checked","all_changes":{}}')
+            photo = folder / "new.png"
+            photo.write_bytes(b"published photo")
+            existing = json.dumps({"manual": "checked", "all_changes": {},
+                                   "images": [{"sha1": hashlib.sha1(photo.read_bytes()).hexdigest()}]}).encode()
+            original.write_bytes(existing)
             with (patch.dict(os.environ, ENV, clear=True),
                   patch.object(vk_zamena, "date_from_image", return_value=(DATE, "")),
                   patch.object(vk_zamena.scraper, "ocr_table") as ocr,
                   patch.object(vk_ai, "_recognize") as request):
-                self.assertEqual(vk_zamena.publish([folder / "new.png"], out_dir=folder)["status"], "already")
+                self.assertEqual(vk_zamena.publish([photo], out_dir=folder)["status"], "already")
+                incoming = folder / vk_zamena.INCOMING
+                incoming.mkdir()
+                extra = incoming / "90_1.png"
+                extra.write_bytes(b"additional photo")
+                results = vk_zamena.process_incoming(folder, out_dir=folder)
+                self.assertEqual(results[0]["status"], "uncertain")
+                self.assertIn("дополнение", results[0]["reason"])
+                self.assertEqual(vk_zamena.process_incoming(folder, out_dir=folder), [])
+                archive = vk_zamena.review_folder(folder, results[0]["inputs"])
+                self.assertEqual((archive / extra.name).read_bytes(), b"additional photo")
                 self.assertFalse(vk_zamena.scraper.process_block({"date": DATE}, None, [], out_dir=folder))
                 ocr.assert_not_called()
                 request.assert_not_called()
-            self.assertEqual(original.read_bytes(), b'{"manual":"checked","all_changes":{}}')
+            self.assertEqual(original.read_bytes(), existing)
+
+    def test_oversize_order_is_not_truncated(self):
+        files = [Path(f"{i}.png") for i in range(vk_zamena.MAX_PHOTOS + 1)]
+        with patch.object(vk_zamena, "date_from_image") as read:
+            result = vk_zamena.publish(files)
+        self.assertEqual(result["status"], "uncertain")
+        self.assertIn("полный комплект", result["reason"])
+        read.assert_not_called()
 
     def test_missing_ocr_date_never_creates_schedule(self):
         with tempfile.TemporaryDirectory() as tmp:
