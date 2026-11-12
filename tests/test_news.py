@@ -77,7 +77,6 @@ def test_official_vk_wall_updates_during_college_outage(monkeypatch, tmp_path, c
         raise requests.ConnectionError("unit-test-placeholder")
 
     monkeypatch.setattr(news.requests, "get", outage)
-    before = path.read_bytes()
     assert news.main() == 1
     assert path.read_bytes() == before
     assert "unit-test-placeholder" not in capsys.readouterr().err
@@ -85,3 +84,29 @@ def test_official_vk_wall_updates_during_college_outage(monkeypatch, tmp_path, c
     monkeypatch.setattr(news, "college_news", lambda _: [college.copy()])
     assert news.main() == 0
     assert json.loads(path.read_text(encoding="utf-8")) == updated
+
+
+def test_vk_diagnostics_distinguish_missing_config_from_api_failure(monkeypatch, tmp_path, capsys):
+    path = tmp_path / "news.json"
+    college = {"title": "Новости колледжа", "date": "05 октября 2026", "url": news.URL}
+    monkeypatch.setattr(news, "OUT", path)
+    monkeypatch.setattr(sys, "argv", ["news.py"])
+    monkeypatch.setattr(news, "college_news", lambda _: [college.copy()])
+    monkeypatch.setattr(news, "article_text", lambda _: "")
+    monkeypatch.delenv("VK_SERVICE_TOKEN", raising=False)
+    assert news.main() == 0
+    assert "не настроен VK_SERVICE_TOKEN" in capsys.readouterr().err
+
+    monkeypatch.setenv("VK_SERVICE_TOKEN", "unit-test-placeholder")
+    response = requests.Response()
+    response.status_code = 200
+    response._content = json.dumps({"error": {"error_code": 5, "error_msg": "unit-test-placeholder"}}).encode()
+    monkeypatch.setattr(news.requests, "get", lambda *args, **kwargs: response)
+    assert news.main() == 0
+    log = capsys.readouterr().err
+    assert "код 5" in log
+    assert "unit-test-placeholder" not in log
+
+    response._content = b'{"response":{"items":[]}}'
+    assert news.main() == 0
+    assert "ВК: доступно 0 постов после фильтрации, в ленте 0." in capsys.readouterr().out
