@@ -254,9 +254,9 @@
         <option value="leaves">Осенние листья</option><option value="petals">Цветы и лепестки</option>
         <option value="lights">Огоньки и звёзды</option><option value="none">Нет</option>
       </select></label>
-      <label>Интенсивность <output id="appearanceIntensity"></output>
-        <input type="range" name="intensity" min="0" max="100">
-      </label>
+      <label for="appearanceRange">Интенсивность</label>
+      <output id="appearanceIntensity" for="appearanceRange"></output>
+      <input type="range" id="appearanceRange" name="intensity" min="0" max="100">
       <label class="appearance-check"><input type="checkbox" name="holidays"> Праздничные украшения</label>
       <label class="appearance-check"><input type="checkbox" name="accumulation"> Снег на карточках и кнопках</label>
       <label class="appearance-check"><input type="checkbox" name="physics"> Стряхивать снег при нажатии</label>

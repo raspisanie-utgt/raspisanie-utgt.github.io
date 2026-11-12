@@ -35,7 +35,7 @@ async function probe(browser, w, h) {
     const mode = dialog.locator('[name="mode"]');
     const close = () => dialog.getByRole('button', { name: 'Закрыть' }).click();
     const counts = () => p.evaluate(() => ({ ...window.appearanceProbe }));
-    const control = dialog.locator('[name="intensity"]');
+    const control = dialog.getByRole('slider', { name: 'Интенсивность' });
     const theme = await p.locator('html').getAttribute('data-theme');
     const lesson = p.locator('#list .lesson').first();
     const size = () => lesson.evaluate(el => [el.offsetWidth, el.offsetHeight]);

@@ -19,6 +19,8 @@
 }
 .appearance-dialog label { display: block; margin-top: 12px; font-weight: 600; }
 .appearance-dialog label[hidden] { display: none; }
+.appearance-dialog label[for="appearanceRange"] { display: inline-block; }
+.appearance-dialog output { margin-inline-start: 4px; }
 .appearance-dialog select, .appearance-dialog input[type="range"] { display: block; width: 100%; margin-top: 4px; }
 .appearance-dialog select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 .appearance-dialog input { accent-color: var(--accent); }
