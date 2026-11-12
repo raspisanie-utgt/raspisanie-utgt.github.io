@@ -166,14 +166,19 @@
   }
 
   function refreshSelectedOrder() {
-    if (!state.data || state.offset === "week" || !navigator.onLine || state.orderRefreshPending) return;
+    if (!state.data || state.offset === "week" || !navigator.onLine) return;
     var now = A.moscowNow(), date = A.addDays(params.get("date") || now.date, state.offset);
     var data = state.data;
     if (date < now.date) return;
+    var pending = state.orderRefreshPending;
+    if (pending) {
+      pending.recheck = pending.date !== date || pending.data !== data;
+      return;
+    }
     var indexed = data.index.days.indexOf(date) >= 0, current = state.zamena[date];
     if (indexed && (!current || Date.now() - state.orderReadAt[date] < 30000)) return;
     var saved = false;
-    state.orderRefreshPending = true;
+    pending = state.orderRefreshPending = { date: date, data: data, recheck: false };
     if (indexed) state.orderReadAt[date] = Date.now();
     var path = indexed ? "data/zameny/" + date + ".json" : "data/zameny/index.json";
     function markSaved() { saved = state.savedHit = true; }
@@ -199,7 +204,10 @@
       if (indexed && error.status === 404 && state.data === data) {
         return getJSON("data/zameny/index.json", markSaved).then(updateIndex);
       }
-    }).catch(function () {}).then(function () { state.orderRefreshPending = false; });
+    }).catch(function () {}).then(function () {
+      state.orderRefreshPending = null;
+      if (pending.recheck) refreshSelectedOrder();
+    });
   }
 
   // Данные давно не обновлялись (ежечасная проверка встала) — плашка об этом, а не спокойное «замен нет».
