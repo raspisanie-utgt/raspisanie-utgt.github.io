@@ -1,7 +1,8 @@
 // Вёрстка: все группы × «Сегодня/Завтра/Неделя» × 15 ширин экрана (280…5120: телефоны, 21:9, планшеты, вертикальный монитор, 32:9) + крупный шрифт (×1.3, ×1.6),
 // светлая и тёмная тема. Всё раскрыто. Ничего не вылезает за карточки и экран, текст не обрезается,
 // длинное в окнах листается.
-const { URL, WIDTHS, groups, launch, page, report, tab, openWhere, openHistory } = require('./lib');
+const assert = require('node:assert/strict');
+const { URL, WIDTHS, groups, lastZ, read, launch, page, report, tab, openWhere, openHistory } = require('./lib');
 
 function layoutCheck() {
   const bad = [];
@@ -11,7 +12,7 @@ function layoutCheck() {
   const txt = (el) => (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
   const hidden = (el) => { for (let a = el; a; a = a.parentElement) { const s = getComputedStyle(a); if (parseFloat(s.opacity) < 0.05 || s.visibility === 'hidden') return true; } return false; };
   // вылезает за свою карточку по ширине
-  const boxes = '.lesson, .wday, .tlesson, .banner, .base, .news, .calendar li, .tabs button, dialog[open], .list, .hday, details, .install, .group-chip, .seg button, .tlist button, .course button, .where-out, .where-list button, .office';
+  const boxes = '.lesson, .wday, .tlesson, .banner, .base, .news, .calendar li, .tabs button, dialog[open], .list, .hday, details, .install, .group-chip, .seg button, .tlist button, .course button, .where-out, .where-list button, .office, .tile, .doc, .foot';
   document.querySelectorAll(boxes).forEach((box) => {
     if (!box.offsetParent && box.tagName !== 'DIALOG') return;
     const b = box.getBoundingClientRect(); if (!b.width) return;
@@ -38,6 +39,7 @@ function layoutCheck() {
   const d = document.querySelector('dialog[open]');
   if (d) {
     const all = [d, ...d.querySelectorAll('*')], db = d.getBoundingClientRect();
+    if (db.left < -1 || db.right > vw + 1 || db.top < -1 || db.bottom > innerHeight + 1) bad.push('окно ' + d.id + ': за границами экрана');
     const bottom = Math.max(...all.map((e) => e.getBoundingClientRect().bottom));
     if (bottom > db.bottom + 2 && !all.some((e) => ['auto', 'scroll'].includes(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 2)) bad.push('окно ' + d.id + ': содержимое ниже окна и не листается');
   }
@@ -48,6 +50,65 @@ const openAll = (p) => p.evaluate(() => {
   document.querySelectorAll('.lesson, .tlesson, .wday[role=button], .base li[role=button]').forEach((l) => l.classList.add('open'));
 });
 
+async function checkWideAspect(p, s, check) {
+  const order = read('data/zameny/' + lastZ() + '.json');
+  const group = order.all_changes['11-А'] ? '11-А' : Object.keys(order.all_changes)[0];
+  await p.goto(URL + '?group=' + encodeURIComponent(group));
+  await p.locator('#list .lesson, #list .empty').first().waitFor();
+  await tab(p, 'week');
+  await p.locator('.tabs [data-day="week"][aria-selected="true"]').waitFor();
+  await p.locator('#weekView').waitFor();
+  await check('week navigation');
+  await tab(p, '0');
+  await p.locator('.tabs [data-day="0"][aria-selected="true"]').waitFor();
+  await p.locator('#images #imageList a').first().waitFor();
+  await p.evaluate(() => scrollTo(0, 0));
+  const alignment = await p.evaluate(() => {
+    const rect = (selector) => document.querySelector(selector).getBoundingClientRect().toJSON();
+    const day = rect('#dayView');
+    const main = rect('main');
+    const extraDays = [...document.querySelectorAll('#nextDay, #nextDay2, #nextDay3, #nextDay4')]
+      .map(el => el.getBoundingClientRect().toJSON()).filter(box => box.width && box.height);
+    return { day, main, extraDays, side: document.querySelector('.desk-side') ? rect('.desk-side') : null };
+  });
+  assert.ok(Math.abs(alignment.main.left + alignment.main.right - s.w) <= 2, 'main layout is off-center');
+  if (s.mob) {
+    assert.equal(alignment.extraDays.length, 0, 'mobile should show one day at a time');
+  } else {
+    assert.equal(alignment.extraDays.length, s.w === 3440 ? 3 : 2, 'wrong number of desktop day columns');
+    const columns = [alignment.day, ...alignment.extraDays, alignment.side];
+    for (let i = 1; i < columns.length; i++) {
+      assert.ok(columns[i - 1].right <= columns[i].left + 1, 'desktop columns overlap');
+      assert.ok(Math.abs(columns[i].top - columns[0].top) <= 1, 'desktop columns have different top edges');
+    }
+  }
+  await check('substitutions and news');
+  await p.locator('#imageList a').first().click();
+  await p.locator('#viewer[open]').waitFor();
+  await p.waitForFunction(() => document.querySelector('#viewerImg').naturalWidth > 0);
+  await check('original order');
+  await p.locator('#viewerClose').click();
+  await p.locator('#viewer').waitFor({ state: 'hidden' });
+
+  if (!s.mob) {
+    for (const tile of await p.locator('#tiles button[data-tile]:visible').all()) {
+      const kind = await tile.getAttribute('data-tile');
+      if (kind === 'where' || kind === 'history') continue;
+      await tile.click();
+      await p.locator('#panel[open] #panelBody > *').first().waitFor();
+      await check(kind);
+      await p.locator('#panelClose').click();
+    }
+  }
+  await p.locator('footer a[href="privacy.html"]').click();
+  await p.waitForURL('**/privacy.html');
+  await p.locator('main h1').waitFor();
+  await check('privacy');
+  await p.locator('main .back').first().click();
+  await p.waitForURL(URL);
+  await p.locator('#groupBtn').waitFor();
+}
+
 (async () => {
   const b = await launch(); const problems = [];
   // крупный масштаб в настройках телефона («Размер экрана») = экран для сайта уже: 393 px при ×1.3 и ×1.6
@@ -55,7 +116,7 @@ const openAll = (p) => p.evaluate(() => {
   // W=280,246 — только выбранные ширины
   for (const s of sets.filter((x) => !process.env.W || process.env.W.split(',').includes(String(x.w)))) {
     const p = await page(b, { w: s.w, h: s.h, mob: s.mob, dark: s.dark || s.w === 1920 || s.w === 280 || s.w === 2560, scale: 1 });
-    const tag = s.w + 'px' + (s.scale !== 1 ? ' (393 при масштабе ×' + s.scale + ')' : '');
+    const tag = s.w + '×' + s.h + (s.scale !== 1 ? ' (393 при масштабе ×' + s.scale + ')' : '');
     const check = async (where) => { await p.waitForTimeout(800); await openAll(p); await p.waitForTimeout(900); (await p.evaluate(layoutCheck)).forEach((x) => problems.push(tag + ', ' + where + ': ' + x)); };
     const all = s.w === 393 || s.w === 320 || s.scale !== 1 ? groups() : ['11-А', '21-С', '31-Д', '41-П', '41-С'];
     for (const g of all) {
@@ -84,10 +145,15 @@ const openAll = (p) => p.evaluate(() => {
       await openHistory(p); await p.waitForSelector('#historyList details'); await check('история замен');
       await p.keyboard.press('Escape');
     } catch (e) { problems.push(tag + ', окна: не удалось — ' + e.message.split('\n')[0]); }
+    if ([360, 412, 2560, 3440].includes(s.w)) {
+      try { await checkWideAspect(p, s, check); }
+      catch (e) { problems.push(tag + ', 21:9: ' + e.message.split('\n')[0]); }
+    }
     problems.push(...p.errs.map((x) => tag + ': ' + x));
     console.log(tag, 'готово');
     await p.ctx.close();
   }
   await b.close();
   report('Вёрстка на всех экранах', problems);
-})();
+  if (problems.length) process.exitCode = 1;
+})().catch(error => { console.error(error); process.exitCode = 1; });
