@@ -83,17 +83,43 @@ def vk_title(text):
 
 
 def vk_parse(posts):
+    if not isinstance(posts, list):
+        raise ValueError("Некорректный список постов ВК")
     items = []
+    malformed = False
     for p in posts:
+        if not isinstance(p, dict):
+            malformed = True
+            continue
         if p.get("marked_as_ads"):
             continue
-        text = p.get("text") or ((p.get("copy_history") or [{}])[0].get("text") or "")
+        text = p.get("text")
+        if not text:
+            copies = p.get("copy_history") or []
+            if not isinstance(copies, list):
+                malformed = True
+                continue
+            first = copies[0] if copies else {}
+            text = first.get("text", "") if isinstance(first, dict) else None
+        if not isinstance(text, str):
+            malformed = True
+            continue
         title = vk_title(text)
         if not title:
             continue
-        d = datetime.fromtimestamp(p["date"], MSK)
+        post_id, timestamp = p.get("id"), p.get("date")
+        if type(post_id) is not int or post_id <= 0 or type(timestamp) is not int or timestamp < 0:
+            malformed = True
+            continue
+        try:
+            d = datetime.fromtimestamp(timestamp, MSK)
+        except (OverflowError, OSError, ValueError):
+            malformed = True
+            continue
         items.append({"title": title, "date": f"{d.day:02d} {MONTHS[d.month - 1]} {d.year}", "day": d.strftime("%Y-%m-%d"),
-                      "url": f"https://vk.com/wall-{VK_GROUP}_{p['id']}", "from": "vk", "text": text})
+                      "url": f"https://vk.com/wall-{VK_GROUP}_{post_id}", "from": "vk", "text": text})
+    if malformed and not items:
+        raise ValueError("Из повреждённого ответа ВК не удалось прочитать ни одного поста")
     return items
 
 
