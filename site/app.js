@@ -128,6 +128,7 @@
       state.data = { groups: r[0].groups, validTo: r[0].valid_to, year: r[0].year, bells: r[1], index: r[2] || { days: [] }, status: r[3], calendar: r[4], news: r[5],
         teachers: r[6], info: r[7], rooms: r[8] };
       state.zamena = {};
+      state.orderReadAt = {};
       state.loadedAt = A.moscowNow().time;
     });
   }
@@ -150,25 +151,42 @@
     if (state.indexFailed) return Promise.resolve({ load_failed: true, ocr_ok: true, all_changes: {}, changes: [], images: [] });
     if (state.data.index.days.indexOf(date) < 0) return Promise.resolve(null);
     if (state.zamena[date] !== undefined) return Promise.resolve(state.zamena[date]);
-    return getJSON("data/zameny/" + date + ".json").then(function (z) { state.zamena[date] = z; return z; }, function () {
+    var orders = state.zamena, readAt = state.orderReadAt;
+    return getJSON("data/zameny/" + date + ".json").then(function (z) {
+      orders[date] = z;
+      readAt[date] = Date.now();
+      return z;
+    }, function () {
       return { load_failed: true, ocr_ok: true, all_changes: {}, changes: [], images: [] };
     });
   }
 
-  function refreshMissingOrder() {
-    if (!state.data || state.offset === "week" || !navigator.onLine || state.orderIndexPending) return;
+  function refreshSelectedOrder() {
+    if (!state.data || state.offset === "week" || !navigator.onLine || state.orderRefreshPending) return;
     var now = A.moscowNow(), date = A.addDays(params.get("date") || now.date, state.offset);
     var data = state.data;
-    if (date < now.date || data.index.days.indexOf(date) >= 0) return;
+    if (date < now.date) return;
+    var indexed = data.index.days.indexOf(date) >= 0, current = state.zamena[date];
+    if (indexed && (!current || Date.now() - state.orderReadAt[date] < 30000)) return;
     var saved = false;
-    state.orderIndexPending = true;
-    getJSON("data/zameny/index.json", function () { saved = state.savedHit = true; }).then(function (index) {
-      if (saved || state.data !== data || !index || !Array.isArray(index.days)) return;
-      var changed = state.indexFailed || index.days.join() !== data.index.days.join();
-      data.index = index;
+    state.orderRefreshPending = true;
+    if (indexed) state.orderReadAt[date] = Date.now();
+    var path = indexed ? "data/zameny/" + date + ".json" : "data/zameny/index.json";
+    getJSON(path, function () { saved = state.savedHit = true; }).then(function (result) {
+      if (saved || state.data !== data || !result) return;
+      if (indexed) {
+        if (result.date === date && JSON.stringify(result) !== JSON.stringify(current)) {
+          state.zamena[date] = result;
+          render();
+        }
+        return;
+      }
+      if (!Array.isArray(result.days)) return;
+      var changed = state.indexFailed || result.days.join() !== data.index.days.join();
+      data.index = result;
       state.indexFailed = false;
       if (changed) render();
-    }).catch(function () {}).then(function () { state.orderIndexPending = false; });
+    }).catch(function () {}).then(function () { state.orderRefreshPending = false; });
   }
 
   // Данные давно не обновлялись (ежечасная проверка встала) — плашка об этом, а не спокойное «замен нет».
@@ -1665,7 +1683,7 @@
     function wake(event) {
       if (document.hidden) return;
       tick();
-      if (event.type === "visibilitychange" || event.persisted) refreshMissingOrder();
+      if (event.type === "visibilitychange" || event.persisted) refreshSelectedOrder();
     }
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("pageshow", wake);
@@ -1942,7 +1960,7 @@
       if (i < 0 || j < 0 || j >= TABS.length) return;
       state.offset = TABS[j];
       render(dx < 0 ? "next" : "prev");
-      refreshMissingOrder();
+      refreshSelectedOrder();
     }, { passive: true });
   })();
 
@@ -1958,7 +1976,7 @@
     var day = tabs[next].dataset.day;
     state.offset = day === "week" ? "week" : +day;
     render(true);
-    refreshMissingOrder();
+    refreshSelectedOrder();
     var updated = Array.prototype.slice.call(this.querySelectorAll('button[role="tab"]')).filter(function (b) { return b.dataset.day === day; })[0];
     if (updated) { updated.focus(); updated.scrollIntoView({ block: "nearest", inline: "nearest" }); }
   });
@@ -1968,7 +1986,7 @@
     if (!b || (!state.group && !state.teacher)) return;
     state.offset = b.dataset.day === "week" ? "week" : +b.dataset.day;
     render(true);
-    refreshMissingOrder();
+    refreshSelectedOrder();
     // переключились снизу длинной страницы — вернуть наверх, к заголовку с датой
     window.scrollTo(0, 0);
   });

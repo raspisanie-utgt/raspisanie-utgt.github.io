@@ -18,6 +18,7 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
       const page = await context.newPage();
       let published = false;
       let freshIndexRequests = 0;
+      let corrected = false;
       try {
         await page.clock.setFixedTime(previous);
         await page.route('**/data/zameny/index.json', async route => {
@@ -29,6 +30,12 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
           index.days = index.days.filter(day => day !== date);
           await route.fulfill({ json: index });
         });
+        const correctedFile = order.images[0].file + '?review=2';
+        await page.route('**/data/zameny/' + date + '.json', route => {
+          if (!corrected) return route.continue();
+          const images = [{ ...order.images[0], file: correctedFile }, ...order.images.slice(1)];
+          return route.fulfill({ json: { ...order, images } });
+        });
         await page.goto(URL + '?group=' + encodeURIComponent(group));
         await page.locator('#list .lesson, #list .empty').first().waitFor();
         const tomorrow = page.locator('.tabs button[data-day="1"]:visible').first();
@@ -38,9 +45,14 @@ const previous = new Date(Date.parse(date + 'T10:00:00+03:00') - 86400000);
         await tomorrow.click();
         await photo.waitFor({ timeout: 5000 });
         assert.ok(freshIndexRequests > 0);
+        await page.locator('.tabs button[data-day="0"]:visible').first().click();
+        corrected = true;
+        await page.clock.setFixedTime(new Date(previous.getTime() + 31000));
+        await tomorrow.click();
+        await page.locator('#imageList a[href="data/zameny/' + correctedFile + '"]').waitFor({ timeout: 5000 });
         await page.reload();
         await tomorrow.click();
-        await photo.waitFor({ timeout: 5000 });
+        await page.locator('#imageList a[href="data/zameny/' + correctedFile + '"]').waitFor({ timeout: 5000 });
       } catch (error) {
         problems.push(width + 'px: ' + String(error).split('\n')[0]);
       } finally {
