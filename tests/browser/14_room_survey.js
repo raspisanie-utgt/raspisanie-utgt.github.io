@@ -16,8 +16,13 @@ async function probe(browser, width) {
   let verified = false;
   const readGroup = route => route.fulfill({ json: verified ? known : schedule });
   const location = URL + '?group=' + encodeURIComponent(group);
-  const postRequests = [];
-  const watch = tab => tab.on('request', request => { if (request.method() !== 'GET') postRequests.push(request.method()); });
+  const writes = [];
+  const watch = tab => tab.on('request', request => {
+    if (request.method() === 'GET') return;
+    const url = new globalThis.URL(request.url());
+    if (request.method() === 'HEAD' && url.origin === new globalThis.URL(URL).origin && url.pathname.endsWith('/data/health.json')) return;
+    writes.push({ method: request.method(), path: url.pathname });
+  });
   try {
     watch(p);
     await p.route('**/data/groups/21s.json', readGroup);
@@ -38,7 +43,8 @@ async function probe(browser, width) {
     assert.equal(await submit.isEnabled(), false);
     await first.press('Enter');
     await first.press('Enter');
-    assert.equal(postRequests.length, 0);
+    assert.equal(p.url(), location, 'Enter does not navigate or submit');
+    assert.deepEqual(writes, []);
     assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
     await p.locator('.tabs button[data-day="week"]:visible').first().click();
     await p.locator('#weekView').waitFor();
@@ -71,7 +77,7 @@ async function probe(browser, width) {
     await lastTab.locator('#list .lesson, #list .empty').first().waitFor();
     assert.equal(await lastTab.locator('#roomSurvey').isVisible(), false);
     assert.equal(await lastTab.evaluate(() => localStorage.getItem('utgt-room-survey-never')), '1');
-    assert.equal(postRequests.length, 0);
+    assert.deepEqual(writes, []);
     return p.errs;
   } finally { await p.ctx.close(); }
 }
