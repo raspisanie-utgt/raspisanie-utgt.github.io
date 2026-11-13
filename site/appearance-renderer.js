@@ -4,8 +4,8 @@
 })(typeof window === 'object' ? window : null, function () {
   'use strict';
 
-  const maxDepth = 11;
-  const edgeLimit = 48;
+  const maxDepth = 4;
+  const edgeLimit = 14;
   const maxPixels = 1600000;
   const frameInterval = 1000 / 30;
   const shapes = {
@@ -15,13 +15,13 @@
     petals: [25, 17, 22, ['#dc81a0', '#eaa1b9', '#c590cd']],
     lights: [16, 4, 8, ['#d2a044', '#8dace8']]
   };
-  const targets = '.lesson, .wday[role="button"], .tabs button, .group-chip, .theme-btn, .tile, .history-btn, details > summary';
+  const targets = '.lesson, .tile, details > summary';
   const range = (min, max) => min + Math.random() * (max - min);
 
   function budget(width, height, dpr, memory, cores) {
     const small = width < 700 || (memory && memory <= 4) || (cores && cores <= 4);
-    return { scale: Math.min(dpr || 1, 1.5, Math.sqrt(maxPixels / Math.max(1, width * height))),
-      count: small ? 26 : 64, debris: small ? 16 : 28 };
+    return { scale: small ? 1 : Math.min(dpr || 1, 1.5, Math.sqrt(maxPixels / Math.max(1, width * height))),
+      count: small ? 15 : 45, debris: small ? 8 : 20, frameMs: small ? 1000 / 20 : frameInterval };
   }
 
   function depth(previous, snowfall, intensity, seconds) {
@@ -94,12 +94,12 @@
         if (edges.length >= edgeLimit) break;
         if (!el.isConnected || el.closest('dialog, [hidden]')) continue;
         const box = el.getBoundingClientRect();
-        if (box.width < 24 || box.height < 12 || box.top < 6 || box.top >= height) continue;
+        if (box.width < 24 || box.height < 12 || box.top < 10 || box.top >= height - 5) continue;
         const style = win.getComputedStyle(el);
-        const radius = Math.max(0, Math.min(box.height / 2, parseFloat(style.borderTopLeftRadius) || 12));
+        const radius = Math.max(0, Math.min(box.height / 2, box.width / 2, parseFloat(style.borderTopLeftRadius) || 12));
         const left = Math.max(3, box.left);
         const right = Math.min(width - 3, box.right);
-        if (right - left >= 16) edges.push({ el, left, right, top: box.top, radius });
+        if (right - left >= 16) edges.push({ el, left, right, top: box.top, radius, width: box.width, height: box.height, boxLeft: box.left });
       }
       dirty = false;
     }
@@ -188,20 +188,36 @@
         pile.level = level;
         if (pile.height < .22) continue;
         const span = edge.right - edge.left;
-        const points = Math.min(19, Math.max(4, Math.ceil(span / 13)));
-        ctx.fillStyle = '#dcecff';
-        ctx.globalAlpha = .32 + opacity * .38;
+        const points = Math.max(6, Math.min(24, Math.ceil(span / 18)));
+        const ridge = Math.min(4, pile.height);
+        // Snow stays INSIDE the rounded element, never outside its top corners.
+        ctx.save();
         ctx.beginPath();
-        ctx.moveTo(edge.left, edge.top);
-        for (let i = 0; i <= points; i++) {
-          const x = edge.left + i * span / points;
-          const distance = Math.min(x - edge.left, edge.right - x);
-          const taper = Math.sqrt(Math.max(0, Math.min(1, distance / Math.max(1, edge.radius))));
-          const crest = .76 + .12 * Math.sin(i * 2.1 + pile.seed) + .08 * Math.cos(i * 3.3);
-          ctx.lineTo(x, edge.top - pile.height * crest * taper);
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(edge.boxLeft, edge.top, edge.width, edge.height, edge.radius);
+        } else {
+          const x = edge.boxLeft, y = edge.top, w = edge.width, h = edge.height, r = edge.radius;
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+          ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+          ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+          ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+          ctx.closePath();
         }
-        ctx.lineTo(edge.right, edge.top);
-        ctx.closePath(); ctx.fill();
+        ctx.clip();
+        ctx.fillStyle = '#dcecff';
+        ctx.globalAlpha = .30 + opacity * .27;
+        ctx.beginPath();
+        ctx.moveTo(edge.left, edge.top - 2);
+        ctx.lineTo(edge.right, edge.top - 2);
+        for (let i = points; i >= 0; i--) {
+          const x = edge.left + i * span / points;
+          const crest = .78 + .09 * Math.sin(i * 1.9 + pile.seed) + .06 * Math.cos(i * 2.7);
+          ctx.lineTo(x, edge.top + ridge * crest);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
       }
     }
 
@@ -244,10 +260,10 @@
       frame = 0;
       if (doc.hidden || !active()) return sync();
       const delta = last ? time - last : frameInterval;
-      if (delta < frameInterval - 1) { frame = win.requestAnimationFrame(draw); return; }
+      if (delta < (limits ? limits.frameMs : frameInterval) - 1) { frame = win.requestAnimationFrame(draw); return; }
       last = time;
       if (resizing) resize();
-      if (tracking && dirty && time >= nextMeasure) { measure(); nextMeasure = time + 140; }
+      if (tracking && dirty) measure();
       const dt = Math.min(delta / 1000, .1);
       const opacity = prefs.intensity / 100;
       ctx.clearRect(0, 0, width, height);
