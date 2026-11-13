@@ -27,6 +27,7 @@
   <script src="appearance-rules.js" defer></script>
   <script src="appearance-renderer.js" defer></script>
   <script src="appearance.js" defer></script>
+  <script src="force-refresh.js" defer></script>
   <script src="desktop.js" defer></script>
   <script>
     // Данные начинают грузиться сразу, вместе со стилями и скриптами, а не после них: на медленном
@@ -195,6 +196,7 @@
         Точная информация — на <a href="https://utgt-pgups.ru/" target="_blank" rel="noopener">utgt-pgups.ru</a>
         и в учебной части. Автор не несёт ответственности за последствия использования этой информации.</p>
       <p id="status">Загрузка…</p>
+      <button type="button" id="forceRefresh" class="force-refresh">↻ Принудительно обновить сайт</button>
       <p>Источники: <a href="https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html">замены</a>,
         <a href="https://utgt-pgups.ru/raspisaniya-i-grafiki.html">расписание и звонки</a> на сайте УТЖТ.
         Замены распознаются автоматически — при сомнениях сверяйтесь с картинкой.</p>
@@ -277,6 +279,7 @@
       <label class="appearance-check"><input type="checkbox" name="accumulation"> Снег на карточках и кнопках</label>
       <label class="appearance-check"><input type="checkbox" name="physics"> Стряхивать снег при нажатии</label>
       <p id="appearanceHoliday" hidden></p>
+      <button type="button" id="forceRefreshAppearance" class="force-refresh">↻ Принудительно обновить сайт</button>
       <p id="appearanceWeather" hidden>Погода в Ухте по данным <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>. Без связи используются эффекты по времени года.</p>
     </form>
   </dialog>
