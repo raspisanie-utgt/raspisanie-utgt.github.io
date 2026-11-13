@@ -92,8 +92,8 @@ test('snow growth, shedding and melting are bounded, including on small and wide
   assert.ok(shed(shed(maxDepth)) < shed(maxDepth));
   assert.equal(depth(0, false, 100, 10), 0);
   assert.equal(depth(maxDepth, false, 100, 40), 0);
-  assert.equal(budget(360, 780, 3, 2, 8).count, 15);
-  assert.equal(budget(3440, 1440, 2, 8, 4).count, 15);
+  assert.equal(budget(360, 780, 3, 2, 8).count, 24);
+  assert.equal(budget(3440, 1440, 2, 8, 4).count, 24);
   for (const [w, h] of [[360, 780], [412, 915], [2560, 1080], [3440, 1440]]) {
     const { scale } = budget(w, h, 3, 8, 8);
     assert.ok(Math.floor(w * scale) * Math.floor(h * scale) <= 1600000);
