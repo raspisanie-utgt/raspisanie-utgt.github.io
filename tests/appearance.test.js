@@ -24,13 +24,13 @@ test('appearance settings default to off, persist and tolerate invalid stored da
 
 test('mode, Moscow date boundaries, holidays and overlap priority', () => {
   assert.equal(rules.monthDay(new Date('2026-08-31T21:00:00Z')), '09-01');
-  for (const [day, effect] of [['12-01', 'none'], ['03-01', 'petals'], ['06-01', 'sun'], ['09-01', 'leaves']]) {
+  for (const [day, effect] of [['12-01', 'snow'], ['03-01', 'petals'], ['06-01', 'sun'], ['09-01', 'leaves']]) {
     assert.equal(select('season', day).effect, effect);
   }
   for (const effect of ['rain', 'leaves', 'petals', 'lights', 'none']) {
     assert.equal(select('manual', '01-07', { manual: effect }).effect, effect);
   }
-  assert.equal(select('manual', '01-07', { manual: 'snow' }).effect, 'none');
+  assert.equal(select('manual', '01-07', { manual: 'snow' }).effect, 'snow');
   assert.equal(select('manual', '01-07', { manual: 'snow' }).holiday[0], 'christmas');
   assert.equal(select('season', '12-24').holiday[0], 'new-year');
   assert.equal(select('season', '01-05').holiday[0], 'new-year');
@@ -46,13 +46,13 @@ test('mode, Moscow date boundaries, holidays and overlap priority', () => {
 
 test('weather mapping and seasonal fallback for missing or unknown codes', () => {
   const map = (weather_code, is_day = 1) => select('weather', '01-10', {}, rules.parseWeather({ weather_code, is_day })).effect;
-  assert.equal(map(85), 'none');
+  assert.equal(map(85), 'snow');
   assert.equal(map(67), 'rain');
   assert.equal(map(99), 'rain');
   assert.equal(map(0), 'sun');
   assert.equal(map(1, 0), 'lights');
   assert.equal(map(48), 'cloud');
-  assert.equal(map(500), 'none');
+  assert.equal(map(500), 'snow');
 });
 
 test('weather calls coalesce, reuse cache, skip offline and back off after failure', async () => {
@@ -92,8 +92,8 @@ test('snow growth, shedding and melting are bounded, including on small and wide
   assert.ok(shed(shed(maxDepth)) < shed(maxDepth));
   assert.equal(depth(0, false, 100, 10), 0);
   assert.equal(depth(maxDepth, false, 100, 40), 0);
-  assert.equal(budget(360, 780, 3, 2, 8).count, 26);
-  assert.equal(budget(3440, 1440, 2, 8, 4).count, 26);
+  assert.equal(budget(360, 780, 3, 2, 8).count, 15);
+  assert.equal(budget(3440, 1440, 2, 8, 4).count, 15);
   for (const [w, h] of [[360, 780], [412, 915], [2560, 1080], [3440, 1440]]) {
     const { scale } = budget(w, h, 3, 8, 8);
     assert.ok(Math.floor(w * scale) * Math.floor(h * scale) <= 1600000);
