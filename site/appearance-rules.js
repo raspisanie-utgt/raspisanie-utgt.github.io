@@ -95,8 +95,7 @@
       else if (weather.code <= 1) effect = weather.day ? 'sun' : 'lights';
       else effect = 'cloud';
     }
-    // Snow stays disabled in production until the visual redesign is approved.
-    return { effect: effect === 'snow' ? 'none' : effect, holiday: prefs.holidays ? holiday(day) : null,
+    return { effect, holiday: prefs.holidays ? holiday(day) : null,
       wind: prefs.mode === 'weather' && weather ? weather.wind : 0 };
   }
 
