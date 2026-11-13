@@ -473,7 +473,8 @@
   function drawNet() {
     var b = $("netBtn"), st = state.data.status.checked_at, kind, text;
     var saved = st ? " (данные от " + st.slice(8, 10) + "." + st.slice(5, 7) + " " + st.slice(11, 16) + ")" : "";
-    if (!navigator.onLine || state.net === "off") { kind = "off"; text = "Нет интернета — показано сохранённое" + saved; }
+    if (state.net === "off" && !navigator.onLine) { kind = "off"; text = "Устройство сообщает об отсутствии сети" + saved; }
+    else if (state.net === "check") { kind = "slow"; text = "Не удалось проверить связь с сайтом — данные могут быть сохранёнными" + saved; }
     else if (state.savedHit) { kind = "slow"; text = "Медленный интернет — показано сохранённое" + saved; }
     else if (state.net === "slow") { kind = "slow"; text = "Медленный интернет" + (state.loadedAt ? " — данные обновлены в " + state.loadedAt : ""); }
     else if (state.loadedAt) { kind = "full"; text = "Интернет в порядке — данные обновлены в " + state.loadedAt; }
@@ -1678,7 +1679,7 @@
     function setNet(v) { if (state.net !== v) { state.net = v; if (state.data) drawNet(); } }
     function probe() {
       if (probing || document.hidden) return;
-      if (!navigator.onLine) { setNet("off"); return; }
+      // navigator.onLine can be wrong with VPN or PWA: confirm by contacting our own server.
       probing = true;
       var t0 = Date.now(), ctl = window.AbortController ? new AbortController() : null;
       var stop = setTimeout(function () { if (ctl) ctl.abort(); }, 6000);
@@ -1688,14 +1689,14 @@
           setNet(Date.now() - t0 > 1500 ? "slow" : "full");
           if (state.savedHit && Date.now() - loaded > 15000) refresh();
         })
-        .catch(function () { setNet("off"); })
+        .catch(function () { setNet("check"); })
         .then(function () { clearTimeout(stop); probing = false; });
     }
     setTimeout(probe, 3000);
     setInterval(probe, 15000);
     document.addEventListener("visibilitychange", probe);
     window.addEventListener("online", probe);
-    window.addEventListener("offline", function () { setNet("off"); });
+    window.addEventListener("offline", function () { setNet("check"); probe(); });
     function tick() {
       var now = A.moscowNow();
       if (now.time === shown) return;
