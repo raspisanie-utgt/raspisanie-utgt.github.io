@@ -95,8 +95,6 @@
       else if (weather.code <= 1) effect = weather.day ? 'sun' : 'lights';
       else effect = 'cloud';
     }
-    // Temporarily disable snow in production until mobile rendering is repaired.
-    if (effect === 'snow') effect = 'none';
     return { effect, holiday: prefs.holidays ? holiday(day) : null,
       wind: prefs.mode === 'weather' && weather ? weather.wind : 0 };
   }
