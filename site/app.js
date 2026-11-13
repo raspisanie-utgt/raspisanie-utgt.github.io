@@ -1133,13 +1133,14 @@
       if (it.uncertain && !it.maybeCancel) tags += '<span class="tag" title="распознано неуверенно">?</span>';
       var who = [it.teacher, it.was ? "вместо: " + it.was : ""].filter(Boolean).join(" · ");
       var key = it.startText + " " + it.subject;
+      var snowKey = [date, state.group || state.teacher || "all", idx, it.startText, it.subject].join("|");
       var fix = updRow(upd, it), wasLine = "";
       if (fix) {
         tags += '<span class="tag upd">исправлено в ' + upd.at + "</span>";
         wasLine = '<div class="was-upd">до исправления: ' + (fix.was ? "<s>" + esc(fix.was.subject === A.CANCEL ? "отмена" : nice(fix.was.subject) + (fix.was.room ? ", ауд. " + fix.was.room : "")) + "</s>" : "замены не было") + "</div>";
       }
       return (idx ? gapHTML(ag.items[idx - 1], it, date, now) : "") + '<article class="lesson ' + subjColor(it.subject) + " " + (it.state || "") + (it.changed ? " changed" : "") + (it.maybeCancel ? " maybe" : "") + (fix ? " upd" : "") +
-        (state.open[key] ? " open" : "") + '" style="--i:' + idx + '" data-key="' + esc(key) + '" tabindex="0" role="button" aria-expanded="' +
+        (state.open[key] ? " open" : "") + '" style="--i:' + idx + '" data-key="' + esc(key) + '" data-snow-id="' + esc(snowKey) + '" tabindex="0" role="button" aria-expanded="' +
         !!state.open[key] + '">' +
         '<div class="time">' + it.startText + "<small>" + it.endText + "</small></div>" +
         '<div><div class="subj">' + subjectsHTML(it.subject) + tags + "</div>" +
