@@ -123,7 +123,7 @@
     }
 
     function snowfall() { return visual.effect === 'snow' && prefs.accumulation && !reduced; }
-    function canMelt() { return level > 0 && prefs.accumulation && !reduced; }
+    function canMelt() { return false; }
     function animate() { return !reduced && (Boolean(shapes[visual.effect]) || canMelt() || debris.length > 0); }
     function active() {
       const staticArt = visual.effect === 'sun' || visual.effect === 'cloud' || visual.holiday;
@@ -173,53 +173,47 @@
       }
     }
 
-    function paintEdges(dt, opacity) {
-      if (!tracking) return;
-      const falling = snowfall();
-      level = depth(level, falling, prefs.intensity, dt);
-      for (const edge of edges) {
-        let pile = piles.get(edge.el);
-        if (!pile) {
-          pile = { height: level, seed: range(0, 7), level };
-          piles.set(edge.el, pile);
-        }
-        // Apply elapsed growth/melt when the element returns to the viewport.
-        pile.height = Math.min(level, Math.max(0, pile.height + level - pile.level + (falling ? dt * .09 : 0)));
-        pile.level = level;
-        if (pile.height < .22) continue;
-        const span = edge.right - edge.left;
-        const points = Math.max(6, Math.min(24, Math.ceil(span / 18)));
-        const ridge = Math.min(4, pile.height);
-        // Snow stays INSIDE the rounded element, never outside its top corners.
-        ctx.save();
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(edge.boxLeft, edge.top, edge.width, edge.height, edge.radius);
-        } else {
-          const x = edge.boxLeft, y = edge.top, w = edge.width, h = edge.height, r = edge.radius;
-          ctx.moveTo(x + r, y);
-          ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-          ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-          ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-          ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
-          ctx.closePath();
-        }
-        ctx.clip();
-        ctx.fillStyle = '#dcecff';
-        ctx.globalAlpha = .30 + opacity * .27;
-        ctx.beginPath();
-        ctx.moveTo(edge.left, edge.top - 2);
-        ctx.lineTo(edge.right, edge.top - 2);
-        for (let i = points; i >= 0; i--) {
-          const x = edge.left + i * span / points;
-          const crest = .78 + .09 * Math.sin(i * 1.9 + pile.seed) + .06 * Math.cos(i * 2.7);
-          ctx.lineTo(x, edge.top + ridge * crest);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+    // Snow caps are DOM children of cards, not coordinates on a fixed canvas.
+    // They therefore remain attached on scroll, browser zoom, and dynamic layout.
+    const capTargets = '.lesson, .tile, details > summary, .tabs button';
+    let capWatch = null, capStyle = null;
+    const caps = new Set();
+    function ensureCaps() {
+      if (!snowfall()) return;
+      for (const el of doc.querySelectorAll(capTargets)) {
+        if (el.closest('dialog, [hidden]') || el.querySelector(':scope > .utgt-snow-cap')) continue;
+        const css = win.getComputedStyle(el);
+        if (css.position === 'static') el.style.position = 'relative';
+        const cap = doc.createElement('span');
+        cap.className = 'utgt-snow-cap';
+        cap.setAttribute('aria-hidden', 'true');
+        el.appendChild(cap);
+        caps.add(cap);
       }
     }
+    function setSnowCaps(enabled) {
+      if (!enabled) {
+        if (capWatch) { capWatch.disconnect(); capWatch = null; }
+        for (const cap of caps) cap.remove();
+        caps.clear();
+        if (capStyle) { capStyle.remove(); capStyle = null; }
+        return;
+      }
+      if (!capStyle) {
+        capStyle = doc.createElement('style');
+        capStyle.textContent = '.utgt-snow-cap{position:absolute!important;pointer-events:none!important;top:0;left:0;right:0;z-index:3;height:5px;max-height:5px;background:#cbdff2;border-radius:inherit;opacity:.65;clip-path:polygon(0 0,100% 0,100% 55%,94% 70%,87% 54%,79% 83%,72% 63%,64% 76%,55% 58%,46% 82%,37% 64%,28% 76%,19% 60%,10% 79%,0 55%)}';
+        doc.head.appendChild(capStyle);
+      }
+      capStyle.textContent = capStyle.textContent.replace(/opacity:[^;]+;/, 'opacity:' + Math.min(.8, .3 + prefs.intensity / 200) + ';');
+      ensureCaps();
+      if (!capWatch && win.MutationObserver) {
+        capWatch = new win.MutationObserver(records => {
+          if (records.some(record => Array.from(record.addedNodes).some(node => node.nodeType === 1 && !(node.classList && node.classList.contains('utgt-snow-cap'))))) ensureCaps();
+        });
+        capWatch.observe(doc.body, {childList:true,subtree:true});
+      }
+    }
+    function paintEdges() { /* Caps belong to their elements, not the canvas. */ }
 
     function paintDebris(dt) {
       ctx.fillStyle = '#c5e1ff'; ctx.globalAlpha = .7;
@@ -319,7 +313,8 @@
         if (!prefs.accumulation || reduced || prefs.mode === 'off' || !prefs.intensity) {
           level = 0; debris = []; piles = new WeakMap();
         }
-        track(snowfall() || canMelt());
+        track(false);
+        setSnowCaps(snowfall());
         sync();
       },
       visibility: sync
