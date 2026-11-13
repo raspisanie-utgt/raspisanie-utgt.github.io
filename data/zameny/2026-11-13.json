@@ -1,0 +1,270 @@
+{
+  "date": "2026-11-13",
+  "group": "11-А",
+  "source": "Фото распоряжения УТЖТ №71 от 12.11.2026, предоставлено пользователем",
+  "fetched_at": "2026-11-13T08:40+03:00",
+  "first_seen": "2026-11-13T08:40+03:00",
+  "updated_at": null,
+  "prev_all_changes": null,
+  "images": [],
+  "title": "Пятница, 2-я неделя",
+  "po_raspisaniyu": false,
+  "ocr_ok": true,
+  "ocr_uncertain": false,
+  "ocr_group_doubt": false,
+  "manual": "Внесено вручную по фото распоряжения №71; исходное изображение ещё не добавлено в репозиторий",
+  "groups_in_order": [
+    "11-П",
+    "11-Д",
+    "11-А",
+    "11-В",
+    "21-П",
+    "21-Д",
+    "21-С",
+    "21-Л",
+    "31-П",
+    "31-С",
+    "41-П",
+    "41-А",
+    "41-С"
+  ],
+  "changes": [],
+  "all_changes": {
+    "11-П": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "Математика",
+        "room": "1-29",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Химия",
+        "room": "2-7",
+        "uncertain": false
+      }
+    ],
+    "11-Д": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Иностранный язык в профессиональной деятельности (английский)",
+        "room": "2-15",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Математика",
+        "room": "1-8",
+        "uncertain": false
+      }
+    ],
+    "11-А": [
+      {
+        "lessons": [
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "11-В": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Химия",
+        "room": "2-7",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "21-П": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Прикладная математика",
+        "room": "1-8",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "21-Д": [
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Основы финансовой грамотности",
+        "room": "1-28",
+        "uncertain": false
+      }
+    ],
+    "21-С": [
+      {
+        "lessons": [
+          3,
+          4
+        ],
+        "time": null,
+        "subject": "Основы финансовой грамотности",
+        "room": "1-28",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "time": null,
+        "subject": "Математические методы решения прикладных профессиональных задач",
+        "room": "1-29",
+        "uncertain": false
+      }
+    ],
+    "21-Л": [
+      {
+        "lessons": [
+          3,
+          4
+        ],
+        "time": null,
+        "subject": "Основы финансовой грамотности",
+        "room": "1-28",
+        "uncertain": false
+      }
+    ],
+    "31-П": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "31-С": [
+      {
+        "lessons": [
+          3,
+          4
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "41-П": [
+      {
+        "lessons": [
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "time": null,
+        "subject": "МДК.02.01 Строительство и реконструкция железных дорог",
+        "room": "2-13",
+        "uncertain": false
+      }
+    ],
+    "41-А": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "МДК.01.02 Теоретические основы построения и эксплуатации перегонных систем железнодорожной автоматики",
+        "room": "1-10",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "41-С": [
+      {
+        "lessons": [
+          9,
+          10
+        ],
+        "time": null,
+        "subject": "МДК.04.01 Планирование и организация работы структурного подразделения",
+        "room": "1-28",
+        "uncertain": false
+      }
+    ]
+  }
+}
