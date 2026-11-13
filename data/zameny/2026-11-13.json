@@ -6,13 +6,19 @@
   "first_seen": "2026-11-13T08:40+03:00",
   "updated_at": null,
   "prev_all_changes": null,
-  "images": [],
+  "images": [
+    {
+      "url": null,
+      "file": "2026-11-13-1.jpg",
+      "sha1": null
+    }
+  ],
   "title": "Пятница, 2-я неделя",
   "po_raspisaniyu": false,
   "ocr_ok": true,
   "ocr_uncertain": false,
   "ocr_group_doubt": false,
-  "manual": "Внесено вручную по фото распоряжения №71; исходное изображение ещё не добавлено в репозиторий",
+  "manual": "Внесено вручную по фото распоряжения №71; оригинал приложен",
   "groups_in_order": [
     "11-П",
     "11-Д",
