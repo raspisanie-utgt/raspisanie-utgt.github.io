@@ -1,0 +1,292 @@
+{
+  "date": "2026-11-14",
+  "group": "11-А",
+  "source": "Фото распоряжения УТЖТ №72 от 13.11.2026, предоставлено пользователем",
+  "fetched_at": "2026-11-13T17:09+03:00",
+  "first_seen": "2026-11-13T17:09+03:00",
+  "updated_at": null,
+  "prev_all_changes": null,
+  "images": [],
+  "title": "Суббота, 2-я неделя",
+  "po_raspisaniyu": false,
+  "ocr_ok": true,
+  "ocr_uncertain": false,
+  "ocr_group_doubt": false,
+  "week_doubt": false,
+  "manual": "Внесено вручную по распоряжению №72. Аудитория у истории (11-А и 11-С, уроки 7–8) не указана. Сообщение студентов «История дистант» не является подтверждением в распоряжении. Оригинал фото пока не добавлен в репозиторий.",
+  "groups_in_order": [
+    "11-П",
+    "11-Д",
+    "11-А",
+    "11-С",
+    "11-В",
+    "31-П",
+    "31-С",
+    "41-П",
+    "41-С"
+  ],
+  "changes": [
+    {
+      "lessons": [
+        1,
+        2
+      ],
+      "time": null,
+      "subject": "Обществознание",
+      "room": "2-10",
+      "uncertain": false
+    },
+    {
+      "lessons": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "time": null,
+      "subject": "Отменить",
+      "room": "",
+      "uncertain": false
+    },
+    {
+      "lessons": [
+        7,
+        8
+      ],
+      "time": null,
+      "subject": "История",
+      "room": "",
+      "uncertain": false
+    }
+  ],
+  "all_changes": {
+    "11-П": [
+      {
+        "lessons": [
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "География",
+        "room": "2-7",
+        "uncertain": false
+      }
+    ],
+    "11-Д": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "География",
+        "room": "2-7",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "11-А": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Обществознание",
+        "room": "2-10",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "История",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "11-С": [
+      {
+        "lessons": [
+          3,
+          4
+        ],
+        "time": null,
+        "subject": "Обществознание",
+        "room": "2-10",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "История",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "11-В": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "Обществознание",
+        "room": "2-10",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Химия",
+        "room": "2-7",
+        "uncertain": false
+      }
+    ],
+    "31-П": [
+      {
+        "lessons": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "31-С": [
+      {
+        "lessons": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "МДК.02.02 Основы построения и технической эксплуатации систем связи",
+        "room": "1-30",
+        "uncertain": false
+      }
+    ],
+    "41-П": [
+      {
+        "lessons": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "МДК.02.01 Строительство и реконструкция железных дорог",
+        "room": "2-13",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          7,
+          8
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ],
+    "41-С": [
+      {
+        "lessons": [
+          1,
+          2
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          3,
+          4
+        ],
+        "time": null,
+        "subject": "Физическая культура",
+        "room": "1-33",
+        "uncertain": false
+      },
+      {
+        "lessons": [
+          5,
+          6
+        ],
+        "time": null,
+        "subject": "Отменить",
+        "room": "",
+        "uncertain": false
+      }
+    ]
+  }
+}
