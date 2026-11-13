@@ -83,7 +83,7 @@
     function attachCaps() {
       if (!snowOn()) return;
       for (const el of doc.querySelectorAll(targets)) {
-        if (!el.isConnected || el.closest('dialog, [hidden]') || capData.has(el)) continue;
+        if (!el.isConnected || el.closest('dialog, [hidden]') || getItem(el)) continue;
         const style = win.getComputedStyle(el);
         if (style.display === 'none') continue;
         if (style.position === 'static') el.style.position = 'relative';
@@ -141,8 +141,7 @@
       }
     }
 
-    // WeakMap is recreated on each activation because DOM cards may be recycled.
-    // Existing cards are recognized through cap.isConnected, not by stale stored state.
+    // Ignore stale WeakMap entries when the effect has been turned off and on.
     function getItem(el) {
       const item = capData.get(el);
       return item && item.cap.isConnected ? item : null;
