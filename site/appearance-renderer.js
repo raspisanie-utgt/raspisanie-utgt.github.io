@@ -4,7 +4,7 @@
 })(typeof window === 'object' ? window : null, function () {
   'use strict';
 
-  const maxDepth = 5;
+  const maxDepth = 11;
   const edgeLimit = 48;
   const maxPixels = 1600000;
   const frameInterval = 1000 / 30;
@@ -95,9 +95,11 @@
         if (!el.isConnected || el.closest('dialog, [hidden]')) continue;
         const box = el.getBoundingClientRect();
         if (box.width < 24 || box.height < 12 || box.top < 6 || box.top >= height) continue;
-        const left = Math.max(3, box.left + 5);
-        const right = Math.min(width - 3, box.right - 5);
-        if (right - left >= 16) edges.push({ el, left, right, top: box.top });
+        const style = win.getComputedStyle(el);
+        const radius = Math.max(0, Math.min(box.height / 2, parseFloat(style.borderTopLeftRadius) || 12));
+        const left = Math.max(3, box.left);
+        const right = Math.min(width - 3, box.right);
+        if (right - left >= 16) edges.push({ el, left, right, top: box.top, radius });
       }
       dirty = false;
     }
@@ -191,9 +193,12 @@
         ctx.globalAlpha = .32 + opacity * .38;
         ctx.beginPath();
         ctx.moveTo(edge.left, edge.top);
-        for (let i = 1; i < points; i++) {
-          const crest = .66 + .19 * Math.sin(i * 2.1 + pile.seed) + .12 * Math.cos(i * 3.3);
-          ctx.lineTo(edge.left + i * span / points, edge.top - pile.height * crest);
+        for (let i = 0; i <= points; i++) {
+          const x = edge.left + i * span / points;
+          const distance = Math.min(x - edge.left, edge.right - x);
+          const taper = Math.sqrt(Math.max(0, Math.min(1, distance / Math.max(1, edge.radius))));
+          const crest = .76 + .12 * Math.sin(i * 2.1 + pile.seed) + .08 * Math.cos(i * 3.3);
+          ctx.lineTo(x, edge.top - pile.height * crest * taper);
         }
         ctx.lineTo(edge.right, edge.top);
         ctx.closePath(); ctx.fill();
