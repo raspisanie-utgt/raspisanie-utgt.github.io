@@ -6,7 +6,13 @@
   "first_seen": "2026-11-13T17:09+03:00",
   "updated_at": null,
   "prev_all_changes": null,
-  "images": [],
+  "images": [
+    {
+      "url": null,
+      "file": "2026-11-14-1.jpg",
+      "sha1": "02d6921014094f4d70028a73961d9dee9497d687"
+    }
+  ],
   "title": "Суббота, 2-я неделя",
   "po_raspisaniyu": false,
   "ocr_ok": true,
