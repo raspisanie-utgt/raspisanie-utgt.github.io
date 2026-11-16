@@ -1,0 +1,205 @@
+{
+ "date": "2026-11-17",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-11-16T15:32+03:00",
+ "first_seen": "2026-11-16T15:32+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": "https://utgt-pgups.ru/images/17-11-2026.png",
+   "file": "2026-11-17-1.png",
+   "sha1": "ff92e3459d87a3dd85907f457f1ea86b67e2f0a6",
+   "table": [
+    14,
+    228,
+    685,
+    612,
+    699,
+    626
+   ]
+  }
+ ],
+ "title": "Вторник, 1-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": true,
+ "ocr_group_doubt": false,
+ "week_doubt": false,
+ "groups_in_order": [
+  "11-С",
+  "21-А",
+  "21-С",
+  "31-А",
+  "31-Д",
+  "31-С",
+  "41-А",
+  "41-П"
+ ],
+ "all_changes": {
+  "11-С": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Химия",
+    "room": "2-7",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Общий курс железных дорог",
+    "room": "2-12",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.01.01 Технология монтажа электронных устройств и систем",
+    "room": "1-32",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (неменкий) / Основы бережливого произволства",
+    "room": "1-14/1-24",
+    "uncertain": true
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Охрана труда",
+    "room": "1-24",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-10",
+    "uncertain": true
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немепкий) / Учебная практика",
+    "room": "1-14/1-10",
+    "uncertain": true
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-29",
+    "uncertain": true
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "МДК.03.03 Неразрушающий контроль рельсов",
+    "room": "2-13",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5
+    ],
+    "time": null,
+    "subject": "МДК.02.01 Строительство и реконструкция железных дорог",
+    "room": "2-13",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     6,
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.03.03 Неразрушающий контроль рельсов",
+    "room": "2-13",
+    "uncertain": true
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "МДК.02.01 Основы технического обслуживания устройств систем СЦБ и ЖАТ",
+    "room": "1-9",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.01.03 Теоретические основы построения и эксплуатации микропроц. и диагност. систем автоматики",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ]
+ }
+}

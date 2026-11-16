@@ -1,9 +1,7 @@
 {
- "failures": 1,
- "failing": [
-  "scrape"
- ],
- "since": "2026-11-16T15:04+03:00",
- "last_check": "2026-11-16T15:04+03:00",
+ "failures": 0,
+ "failing": [],
+ "since": null,
+ "last_check": "2026-11-16T15:33+03:00",
  "issue_open": false
 }
