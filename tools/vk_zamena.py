@@ -270,6 +270,18 @@ def add_ai_suggestion(result, files, tables, log):
     result["text"] = (summary + "\n" + result["text"])[:TEXT_LIMIT]
 
 
+def review_details(tables):
+    lines = [f"Распознано строк: {sum(len(table['rows']) for table in tables)}."]
+    for page, table in enumerate(tables, 1):
+        if not table.get("ok"):
+            lines.append(f"Лист {page}: {table.get('error') or 'таблица не подтверждена'}")
+        for position, row in enumerate(table["rows"], 1):
+            if row.get("uncertain"):
+                problems = "; ".join(row.get("review") or ["строка не подтверждена"])
+                lines.append(f"Лист {page}, строка {position} ({row['group']}): {problems}")
+    return "\n".join(lines)
+
+
 def verify_ocr(files, tables, vocab, date, title):
     second = []
     for path in files:
@@ -279,10 +291,13 @@ def verify_ocr(files, tables, vocab, date, title):
     for page, (first, other) in enumerate(zip(tables, second), 1):
         if not other.get("ok") or other.get("group_doubt") or len(first["rows"]) != len(other["rows"]):
             return f"лист {page}: повторное OCR не подтвердило таблицу"
-        fields = ("group", "lessons", "time", "subject", "room")
+        fields = {"group": "группа", "lessons": "уроки", "time": "время", "subject": "дисциплина", "room": "кабинет"}
         for row, (a, b) in enumerate(zip(first["rows"], other["rows"]), 1):
-            if b.get("uncertain") or any(a[field] != b[field] for field in fields):
-                return f"лист {page}, строка {row}: два чтения OCR расходятся"
+            different = [label for field, label in fields.items() if a[field] != b[field]]
+            if b.get("uncertain") or different:
+                detail = "; ".join(filter(None, (", ".join(different), *(b.get("review") or []))))
+                return (f"лист {page}, строка {row}: повторное OCR не подтвердило строку"
+                        + (f" ({detail})" if detail else ""))
     return None
 
 
@@ -339,8 +354,13 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
     if is_clean(meta) and not meta.get("checked_by_hand"):
         mismatch = verify_ocr(files, tables, vocab, date, title)
     if mismatch or not is_clean(meta):
+        diagnostics = review_details(tables)
+        reason = diagnostics + "\n" + (mismatch or why(meta))
+        evidence = [[[_norm(cell)[:500] for cell in row.get("raw", [])]
+                     for row in table["rows"]] for table in tables]
         result = {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],
-                  "reason": mismatch or why(meta), "text": _norm(text)[:TEXT_LIMIT]}
+                  "reason": reason, "text": _norm(reason + "\n" + text)[:TEXT_LIMIT],
+                  "ocr_rows": evidence}
         add_ai_suggestion(result, files, tables, log)
         return result
     if dry:
@@ -504,7 +524,7 @@ def save_queue(data_dir, history):
 
 
 def write_legacy_result(result, data_dir):
-    last = {k: v for k, v in result.items() if k != "inputs"}
+    last = {k: v for k, v in result.items() if k not in ("inputs", "ocr_rows")}
     reason = last.get("reason", "")
     if AI_REPORT_MARKER in reason:
         summary, _, report = reason.partition(AI_REPORT_MARKER)

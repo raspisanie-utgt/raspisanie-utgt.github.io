@@ -380,7 +380,6 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
                 g2, ok2 = normalize_group(cell(vlines[0], vlines[1], gy0, gy1, 7, k)[0])
                 if g2 and (ok2 or not g):
                     g, g_ok = g2, ok2
-        row_uncertain = False
         if g:
             group, group_sure = g, g_ok
             group_doubt |= not g_ok  # название группы прочитано криво — строка может быть чьей угодно
@@ -390,7 +389,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
             group, group_sure, group_doubt = "?", False, True
         if group is None:  # первая строка таблицы, а группа не прочиталась — не терять строку молча
             group, group_sure, group_doubt = "?", False, True
-        row_uncertain = not group_sure
+        review = [] if group_sure else ["OCR: группа не подтверждена"]
         # урок: обычное чтение и ещё четыре разными способами (подобраны на мелких картинках 19.10–02.11:
         # каждый способ где-то ошибается, большинство — нет); берём то, за что большинство
         lesson_reads = [raw[1] if len(raw) > 1 else ""]
@@ -404,7 +403,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
             lessons_sure = False  # большинство чтений вообще ничего не прочитало — одно чтение не доказательство
         lessons, time = (list(best[0]), best[1]) if best else ([], None)
         if best and not lessons_sure:
-            row_uncertain = True
+            review.append("OCR: чтения номеров уроков расходятся")
         subject = raw[2] if len(raw) > 2 else ""
         room = fix_digits(raw[3]) if len(raw) > 3 else ""
         room_alts = []
@@ -432,15 +431,17 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
         if not subject and texts[2][1] > 0.01:  # в ячейке что-то написано, а прочиталась пустота
             s_ok = False
         if not lessons and not time:
-            row_uncertain = True
+            review.append("OCR: номера уроков или время не прочитались")
         if len(lessons) >= 7 and lessons[0] == 1:  # «1-8» на мелкой картинке — обычно неверно прочитанное «7-8»
-            row_uncertain = True
+            review.append("Проверка диапазона: длинный диапазон с первого урока")
         if len(lessons) > 1 and (lessons[0] % 2 == 0 or lessons[-1] % 2 == 1):
-            row_uncertain = True  # пары — с нечётного урока по чётный: «1-5», «4-6» — скорее всего, цифра прочитана неверно
+            review.append("Проверка диапазона: границы не совпадают с учебными парами")
         if not room and len(texts) > 3 and texts[3][1] > 0.01:
-            row_uncertain = True  # в ячейке кабинета что-то написано, а кабинет не прочитался
+            review.append("OCR: кабинет не прочитался в непустой ячейке")
+        if not s_ok:
+            review.append("OCR/справочник: название дисциплины не подтверждено")
         rows.append({"group": group, "lessons": lessons, "time": time, "subject": subject,
-                     "room": room, "uncertain": row_uncertain or not s_ok, "raw": raw,
+                     "room": room, "uncertain": bool(review), "raw": raw, "review": review,
                      "room_alts": room_alts if len(room_alts) > 1 else []})
     return {"ok": in_table and bool(rows), "title": title, "rows": rows,
             # рамка таблицы на картинке: сайт показывает только её, крупно (x0, y0, x1, y1, ширина, высота)
@@ -559,6 +560,7 @@ def check_with_schedule(tables, date, title="", schedules=None, past=None):
             if not s:
                 if len(alts) > 1:
                     r["uncertain"] = True
+                    r.setdefault("review", []).append("Справочник: нет расписания группы для сверки кабинета")
                 continue
             if len(alts) > 1:
                 own = {e["room"] for d in s["days"].values() for e in d if e["subject"] == r["subject"]}
@@ -567,10 +569,12 @@ def check_with_schedule(tables, date, title="", schedules=None, past=None):
                     r["room"] = hits[0]
                 else:
                     r["uncertain"] = True  # прочтения расходятся, и расписание не подсказывает
+                    r.setdefault("review", []).append("Справочник: расписание и архив не разрешили спор о кабинете")
             day = [e for e in s["days"].get(str(wd), []) if not (e.get("week") and week and e["week"] != week)]
             have = {n for e in day for n in e["lessons"]}
             if r["subject"] == CANCEL and r["lessons"] and not set(r["lessons"]) & have:
                 r["uncertain"] = True
+                r.setdefault("review", []).append("Расписание: ни один отменяемый урок не найден")
     return tables
 
 
