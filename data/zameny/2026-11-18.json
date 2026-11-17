@@ -1,0 +1,240 @@
+{
+ "date": "2026-11-18",
+ "source": "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html",
+ "fetched_at": "2026-11-17T16:37+03:00",
+ "first_seen": "2026-11-17T16:37+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": "https://utgt-pgups.ru/images/18-11-2026.png",
+   "file": "2026-11-18-1.png",
+   "sha1": "c8bae60247af6427c60e0a62d353cc0e287ecf83",
+   "table": [
+    13,
+    220,
+    684,
+    638,
+    697,
+    647
+   ]
+  }
+ ],
+ "title": "Среда, 1-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": true,
+ "ocr_group_doubt": false,
+ "week_doubt": false,
+ "groups_in_order": [
+  "11-А",
+  "11-В",
+  "11-Д",
+  "11-Л",
+  "11-П",
+  "11-С",
+  "21-А",
+  "21-С",
+  "31-А",
+  "31-П",
+  "31-С",
+  "41-А",
+  "41-Д",
+  "41-П",
+  "41-С"
+ ],
+ "all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-Д": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-А": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-С": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-В": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технология рем.-регулирировочных работ устройств и приборов систем железнодорожной автоматики и телемеханики",
+    "room": "1-10",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Математические методы решения прикладных профессиональных задач",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Основы бережливого производства",
+    "room": "1-24",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-10",
+    "uncertain": true
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-29",
+    "uncertain": true
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "МДК.03.03 Неразрушающий контроль рельсов",
+    "room": "2-13",
+    "uncertain": false
+   }
+  ],
+  "41-Д": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Физическая культура",
+    "room": "1-33",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.01.03 Теоретические основы построения и эксплуатации микропроц. и диагност. систем автоматики",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Охрана труда",
+    "room": "1-24",
+    "uncertain": false
+   }
+  ]
+ }
+}
