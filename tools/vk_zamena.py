@@ -144,7 +144,7 @@ def date_from_text(text, today=None, strict=False):
 def ocr_text(path, psm=6, lang="rus"):
     """Распознанный текст картинки (tesseract)."""
     r = subprocess.run(["tesseract", str(path), "-", "-l", lang, "--psm", str(psm)],
-                       capture_output=True, text=True, check=True)
+                       capture_output=True, encoding="utf-8", check=True)
     return r.stdout
 
 
@@ -279,6 +279,8 @@ def review_details(tables):
             if row.get("uncertain"):
                 problems = "; ".join(row.get("review") or ["строка не подтверждена"])
                 lines.append(f"Лист {page}, строка {position} ({row['group']}): {problems}")
+                lines.append("Прочитано: " + " | ".join(_norm(value)[:500] for value in row.get("raw", [])))
+                lines.append("Сверьте указанные поля с исходной строкой фотографии.")
     return "\n".join(lines)
 
 
@@ -288,17 +290,37 @@ def verify_ocr(files, tables, vocab, date, title):
         second.append(scraper.ocr_table(path, vocab, continued=any(t.get("in_table") for t in second),
                                         alternate=True))
     scraper.check_with_schedule(second, date, title)
+    problems = []
     for page, (first, other) in enumerate(zip(tables, second), 1):
         if not other.get("ok") or other.get("group_doubt") or len(first["rows"]) != len(other["rows"]):
-            return f"лист {page}: повторное OCR не подтвердило таблицу"
+            problems.append(f"лист {page}: повторное OCR не подтвердило таблицу")
+            continue
         fields = {"group": "группа", "lessons": "уроки", "time": "время", "subject": "дисциплина", "room": "кабинет"}
         for row, (a, b) in enumerate(zip(first["rows"], other["rows"]), 1):
             different = [label for field, label in fields.items() if a[field] != b[field]]
             if b.get("uncertain") or different:
                 detail = "; ".join(filter(None, (", ".join(different), *(b.get("review") or []))))
-                return (f"лист {page}, строка {row}: повторное OCR не подтвердило строку"
-                        + (f" ({detail})" if detail else ""))
-    return None
+                problems.append(f"лист {page}, строка {row}: повторное OCR не подтвердило строку"
+                        + (f" ({detail})" if detail else "")
+                        + "\nПервое чтение: " + " | ".join(_norm(v)[:500] for v in a.get("raw", []))
+                        + "\nПовторное чтение: " + " | ".join(_norm(v)[:500] for v in b.get("raw", []))
+                        + "\nСверьте расходящиеся поля с фотографией.")
+    return "\n".join(problems) or None
+
+
+def order_number_evidence(files):
+    """Номер — диагностическое поле, чтения сохраняются без выбора по большинству."""
+    readings = []
+    for psm in (6, 3):
+        text = ocr_text(files[0], psm=psm)
+        header = re.split(r"Внести|обязыва", text, maxsplit=1, flags=re.I)[0]
+        readings.append(re.findall(r"№\s*(\d+)\b", header))
+    numbers = sorted({number for reading in readings for number in reading})
+    if len(numbers) > 1:
+        return "Номер распоряжения: OCR расходится (" + ", ".join(numbers) + "). Сверьте номер на фотографии."
+    if numbers:
+        return "Номер распоряжения в OCR: " + numbers[0] + " (без подтверждения человеком)."
+    return "Номер распоряжения не прочитан. Сверьте шапку фотографии."
 
 
 def publish(files, out_dir=None, today=None, dry=False, log=print):
@@ -356,6 +378,11 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
     if mismatch or not is_clean(meta):
         diagnostics = review_details(tables)
         reason = diagnostics + "\n" + (mismatch or why(meta))
+        if re.search(r"№\s*\d", text):
+            try:
+                reason += "\n" + order_number_evidence(files)
+            except (OSError, subprocess.SubprocessError):
+                reason += "\nНомер распоряжения: повторное чтение недоступно. Сверьте шапку фотографии."
         evidence = [[[_norm(cell)[:500] for cell in row.get("raw", [])]
                      for row in table["rows"]] for table in tables]
         result = {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],

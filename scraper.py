@@ -270,6 +270,9 @@ def subject_code(s):
 def snap_subject(text, vocab):
     if not text:
         return text, True
+    if text.casefold().startswith("учебная практика"):
+        exact = next((name for name in vocab if name.casefold() == text.casefold()), None)
+        return (exact, True) if exact else (text, False)
     best = difflib.get_close_matches(text, vocab, n=1, cutoff=0.75)
     if best:
         # похожие МДК различаются только цифрой кода («03.01» и «03.02»): если код прочитан и не совпал —
@@ -286,6 +289,28 @@ def snap_subject(text, vocab):
     if text.lower().startswith(("разгов", "разтов", "разговоры")):
         return "Разговоры о важном", True
     return text, False
+
+
+def read_binary_cell(crop, scale, threshold, psm):
+    enlarged = crop.resize((crop.width * scale, crop.height * scale), Image.LANCZOS)
+    binary = ImageOps.autocontrast(enlarged).point(lambda p: 255 if p >= threshold else 0)
+    bounds = ImageOps.invert(binary).getbbox()
+    return _tesseract(ImageOps.expand(binary.crop(bounds), border=8, fill=255), psm) if bounds else ""
+
+
+def _reread_legacy_subject(image, box, vocab):
+    x0, y0, x1, y1 = box
+    readings = []
+    for inset, scale, threshold, psm in ((2, 3, 180, 6), (3, 4, 195, 7)):
+        crop = image.crop((x0 + 3, y0 + inset, x1 - 3, y1 - inset))
+        if crop.width <= 0 or crop.height <= 0:
+            return None
+        readings.append(read_binary_cell(crop, scale, threshold, psm))
+    first, second = readings
+    if first == second and first != CANCEL and first in vocab:
+        return first
+    return None
+
 
 
 def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate=False):
@@ -357,6 +382,11 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
             continue  # пустая строка (хвост у обрезанного снизу снимка) — не строка таблицы
         joined = " ".join(raw).lower()
         header = "урок" in joined and ("групп" in joined or "трупп" in joined)
+        if alternate and not in_table and "групп" in joined:
+            header_crop = im.crop((vlines[1] + 2, y0 + 2, vlines[2] - 1, y1 - 1))
+            header_crop = header_crop.resize((header_crop.width * scale, header_crop.height * scale), Image.LANCZOS)
+            lesson_header = _tesseract(header_crop, 7).lower()
+            header = header or "урок" in lesson_header
         if not in_table or header or ("недел" in joined and not re.search(r"\d", raw[1] if len(raw) > 1 else "")):
             if "недел" in joined:
                 title = next(t for t in raw if "недел" in t.lower())
@@ -428,6 +458,10 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
         room = snap_room(room, rooms)
         subject = subject.strip(" |]")
         subject, s_ok = snap_subject(subject, vocab)
+        if not s_ok:
+            confirmed = _reread_legacy_subject(im, (vlines[2], y0, vlines[3], y1), vocab)
+            if confirmed:
+                subject, s_ok = confirmed, True
         if not subject and texts[2][1] > 0.01:  # в ячейке что-то написано, а прочиталась пустота
             s_ok = False
         if not lessons and not time:
@@ -622,6 +656,17 @@ def subject_vocab():
     for path in sorted((DATA / "groups").glob("*.json")):
         sched = json.loads(path.read_text(encoding="utf-8"))
         names |= {l["subject"] for day in sched.get("days", {}).values() for l in day}
+    calendar_path = DATA / "calendar.json"
+    if calendar_path.exists():
+        calendar = json.loads(calendar_path.read_text(encoding="utf-8"))
+        for group in calendar.get("groups", {}).values():
+            for period in group.get("periods", []):
+                name = period.get("name", "").strip()
+                if period.get("type") == "praktika" and name:
+                    names.add(name)
+                    # В распоряжении вид практики может быть указан без специализации.
+                    if re.match(r"^Учебная практика(?:$|[: (])", name):
+                        names.add("Учебная практика")
     return sorted(names | set(EXTRA_SUBJECTS))
 
 
