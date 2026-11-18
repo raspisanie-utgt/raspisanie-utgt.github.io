@@ -1,5 +1,9 @@
 // Расписание любой группы очного отделения УТЖТ: выбор группы, замены, неделя, «где сейчас преподаватель».
 (function () {
+  try {
+    localStorage.removeItem("utgt-appearance-v1");
+    localStorage.removeItem("utgt-ukhta-weather-v1");
+  } catch (_) { /* хранилище может быть недоступно */ }
   "use strict";
   var A = window.Agenda, C = window.Calendar;
   var STORE_KEY = "utgt-group", WHO_KEY = "utgt-who", TEACHER_KEY = "utgt-teacher", LANG_KEY = "utgt-lang", YEAR_KEY = "utgt-group-year";
