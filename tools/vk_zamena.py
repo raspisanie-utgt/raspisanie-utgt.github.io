@@ -144,7 +144,7 @@ def date_from_text(text, today=None, strict=False):
 def ocr_text(path, psm=6, lang="rus"):
     """Распознанный текст картинки (tesseract)."""
     r = subprocess.run(["tesseract", str(path), "-", "-l", lang, "--psm", str(psm)],
-                       capture_output=True, text=True, check=True)
+                       capture_output=True, encoding="utf-8", check=True)
     return r.stdout
 
 
@@ -270,20 +270,68 @@ def add_ai_suggestion(result, files, tables, log):
     result["text"] = (summary + "\n" + result["text"])[:TEXT_LIMIT]
 
 
+def review_details(tables):
+    lines = [f"Распознано строк: {sum(len(table['rows']) for table in tables)}."]
+    for page, table in enumerate(tables, 1):
+        if not table.get("ok"):
+            lines.append(f"Лист {page}: {table.get('error') or 'таблица не подтверждена'}")
+        for position, row in enumerate(table["rows"], 1):
+            if row.get("uncertain"):
+                problems = "; ".join(row.get("review") or ["строка не подтверждена"])
+                lines.append(f"Лист {page}, строка {position} ({row['group']}): {problems}")
+                lines.append("Прочитано: " + " | ".join(_norm(value)[:500] for value in row.get("raw", [])))
+                lines.append("Сверьте указанные поля с исходной строкой фотографии.")
+    return "\n".join(lines)
+
+
 def verify_ocr(files, tables, vocab, date, title):
     second = []
     for path in files:
         second.append(scraper.ocr_table(path, vocab, continued=any(t.get("in_table") for t in second),
                                         alternate=True))
     scraper.check_with_schedule(second, date, title)
+    problems = []
     for page, (first, other) in enumerate(zip(tables, second), 1):
         if not other.get("ok") or other.get("group_doubt") or len(first["rows"]) != len(other["rows"]):
-            return f"лист {page}: повторное OCR не подтвердило таблицу"
-        fields = ("group", "lessons", "time", "subject", "room")
+            problems.append(f"лист {page}: повторное OCR не подтвердило таблицу"
+                            f" (строк: первое чтение {len(first['rows'])}, повторное {len(other['rows'])};"
+                            f" структура подтверждена: {bool(other.get('ok'))};"
+                            f" сомнение в группах: {bool(other.get('group_doubt'))})."
+                            " Сверьте количество строк, заголовок и группы с фотографией.")
+            if len(first["rows"]) != len(other["rows"]):
+                for label, table in (("Первое чтение", first), ("Повторное чтение", other)):
+                    for number, value in enumerate(table["rows"], 1):
+                        evidence = value.get("raw") or [value.get(field, "") for field in
+                                                     ("group", "lessons", "subject", "room")]
+                        problems.append(f"{label}, строка {number}: "
+                                        + " | ".join(_norm(item)[:500] for item in evidence))
+                continue
+        fields = {"group": "группа", "lessons": "уроки", "time": "время", "subject": "дисциплина", "room": "кабинет"}
         for row, (a, b) in enumerate(zip(first["rows"], other["rows"]), 1):
-            if b.get("uncertain") or any(a[field] != b[field] for field in fields):
-                return f"лист {page}, строка {row}: два чтения OCR расходятся"
-    return None
+            different = [label for field, label in fields.items() if a[field] != b[field]]
+            if b.get("uncertain") or different:
+                detail = "; ".join(filter(None, (", ".join(different), *(b.get("review") or []))))
+                problems.append(f"лист {page}, строка {row}: повторное OCR не подтвердило строку"
+                        + (f" ({detail})" if detail else "")
+                        + "\nПервое чтение: " + " | ".join(_norm(v)[:500] for v in a.get("raw", []))
+                        + "\nПовторное чтение: " + " | ".join(_norm(v)[:500] for v in b.get("raw", []))
+                        + "\nСверьте расходящиеся поля с фотографией.")
+    return "\n".join(problems) or None
+
+
+def order_number_evidence(files):
+    """Номер — диагностическое поле, чтения сохраняются без выбора по большинству."""
+    readings = []
+    for psm in (6, 3):
+        text = ocr_text(files[0], psm=psm)
+        header = re.split(r"Внести|обязыва", text, maxsplit=1, flags=re.I)[0]
+        readings.append(re.findall(r"№\s*(\d+)\b", header))
+    numbers = sorted({number for reading in readings for number in reading})
+    if len(numbers) > 1:
+        return "Номер распоряжения: OCR расходится (" + ", ".join(numbers) + "). Сверьте номер на фотографии."
+    if numbers:
+        return "Номер распоряжения в OCR: " + numbers[0] + " (без подтверждения человеком)."
+    return "Номер распоряжения не прочитан. Сверьте шапку фотографии."
 
 
 def publish(files, out_dir=None, today=None, dry=False, log=print):
@@ -316,6 +364,20 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
 
     meta_path = out_dir / ("%s.json" % date)
     if meta_path.exists():
+        existing = json.loads(meta_path.read_text(encoding="utf-8"))
+        if existing.get("date") != date or not is_clean(existing):
+            return {"status": "uncertain", "date": date,
+                    "groups": existing.get("groups_in_order", []),
+                    "reason": "За эту дату на сайте уже есть данные, но их распознавание не подтверждено. "
+                              + why(existing), "published": True}
+        # Совпадение даты не доказывает, что новое фото — тот же документ.
+        known = {image.get("sha1") for image in existing.get("images", [])}
+        incoming = {hashlib.sha1(path.read_bytes()).hexdigest() for path in files}
+        if not incoming or not incoming.issubset(known):
+            return {"status": "uncertain", "date": date,
+                    "groups": existing.get("groups_in_order", []),
+                    "reason": "За эту дату уже есть замены, но присланное фото отличается от сохранённого. "
+                              "Проверьте, не является ли оно исправлением или дополнением.", "published": True}
         return {"status": "already", "date": date}
 
     vocab = scraper.subject_vocab()
@@ -339,8 +401,18 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
     if is_clean(meta) and not meta.get("checked_by_hand"):
         mismatch = verify_ocr(files, tables, vocab, date, title)
     if mismatch or not is_clean(meta):
+        diagnostics = review_details(tables)
+        reason = diagnostics + "\n" + (mismatch or why(meta))
+        if re.search(r"№\s*\d", text):
+            try:
+                reason += "\n" + order_number_evidence(files)
+            except (OSError, subprocess.SubprocessError):
+                reason += "\nНомер распоряжения: повторное чтение недоступно. Сверьте шапку фотографии."
+        evidence = [[[_norm(cell)[:500] for cell in row.get("raw", [])]
+                     for row in table["rows"]] for table in tables]
         result = {"status": "uncertain", "date": date, "groups": meta["groups_in_order"],
-                  "reason": mismatch or why(meta), "text": _norm(text)[:TEXT_LIMIT]}
+                  "reason": reason, "text": _norm(reason + "\n" + text)[:TEXT_LIMIT],
+                  "ocr_rows": evidence}
         add_ai_suggestion(result, files, tables, log)
         return result
     if dry:
@@ -504,7 +576,7 @@ def save_queue(data_dir, history):
 
 
 def write_legacy_result(result, data_dir):
-    last = {k: v for k, v in result.items() if k != "inputs"}
+    last = {k: v for k, v in result.items() if k not in ("inputs", "ocr_rows")}
     reason = last.get("reason", "")
     if AI_REPORT_MARKER in reason:
         summary, _, report = reason.partition(AI_REPORT_MARKER)

@@ -238,7 +238,8 @@ class WorkflowTests(unittest.TestCase):
                   patch.object(vk_zamena, "date_from_image", return_value=(DATE, "")),
                   patch.object(vk_zamena.scraper, "ocr_table") as ocr,
                   patch.object(vk_ai, "_recognize") as request):
-                self.assertEqual(vk_zamena.publish([folder / "new.png"], out_dir=folder)["status"], "already")
+                # Сохранённая ручная правка не доказывает, что новое фото совпадает с ней.
+                self.assertEqual(vk_zamena.publish([folder / "new.png"], out_dir=folder)["status"], "uncertain")
                 self.assertFalse(vk_zamena.scraper.process_block({"date": DATE}, None, [], out_dir=folder))
                 ocr.assert_not_called()
                 request.assert_not_called()

@@ -125,6 +125,8 @@ def _row(value, groups):
             or any(type(n) is not int or not 1 <= n <= 10 for n in lessons)
             or lessons != sorted(set(lessons))):
         raise ValueError("некорректный список уроков")
+    if lessons and lessons != list(range(lessons[0], lessons[-1] + 1)):
+        raise ValueError("диапазон уроков указан не полностью")
     if (time and not TIME.fullmatch(time)) or (not lessons and not time):
         raise ValueError("некорректное время или пустой урок")
     if not subject:
