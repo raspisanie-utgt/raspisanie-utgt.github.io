@@ -293,8 +293,19 @@ def verify_ocr(files, tables, vocab, date, title):
     problems = []
     for page, (first, other) in enumerate(zip(tables, second), 1):
         if not other.get("ok") or other.get("group_doubt") or len(first["rows"]) != len(other["rows"]):
-            problems.append(f"лист {page}: повторное OCR не подтвердило таблицу")
-            continue
+            problems.append(f"лист {page}: повторное OCR не подтвердило таблицу"
+                            f" (строк: первое чтение {len(first['rows'])}, повторное {len(other['rows'])};"
+                            f" структура подтверждена: {bool(other.get('ok'))};"
+                            f" сомнение в группах: {bool(other.get('group_doubt'))})."
+                            " Сверьте количество строк, заголовок и группы с фотографией.")
+            if len(first["rows"]) != len(other["rows"]):
+                for label, table in (("Первое чтение", first), ("Повторное чтение", other)):
+                    for number, value in enumerate(table["rows"], 1):
+                        evidence = value.get("raw") or [value.get(field, "") for field in
+                                                     ("group", "lessons", "subject", "room")]
+                        problems.append(f"{label}, строка {number}: "
+                                        + " | ".join(_norm(item)[:500] for item in evidence))
+                continue
         fields = {"group": "группа", "lessons": "уроки", "time": "время", "subject": "дисциплина", "room": "кабинет"}
         for row, (a, b) in enumerate(zip(first["rows"], other["rows"]), 1):
             different = [label for field, label in fields.items() if a[field] != b[field]]
