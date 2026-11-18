@@ -353,6 +353,20 @@ def publish(files, out_dir=None, today=None, dry=False, log=print):
 
     meta_path = out_dir / ("%s.json" % date)
     if meta_path.exists():
+        existing = json.loads(meta_path.read_text(encoding="utf-8"))
+        if existing.get("date") != date or not is_clean(existing):
+            return {"status": "uncertain", "date": date,
+                    "groups": existing.get("groups_in_order", []),
+                    "reason": "За эту дату на сайте уже есть данные, но их распознавание не подтверждено. "
+                              + why(existing), "published": True}
+        # Совпадение даты не доказывает, что новое фото — тот же документ.
+        known = {image.get("sha1") for image in existing.get("images", [])}
+        incoming = {hashlib.sha1(path.read_bytes()).hexdigest() for path in files}
+        if not incoming or not incoming.issubset(known):
+            return {"status": "uncertain", "date": date,
+                    "groups": existing.get("groups_in_order", []),
+                    "reason": "За эту дату уже есть замены, но присланное фото отличается от сохранённого. "
+                              "Проверьте, не является ли оно исправлением или дополнением.", "published": True}
         return {"status": "already", "date": date}
 
     vocab = scraper.subject_vocab()
