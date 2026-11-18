@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>УТЖТ — расписание групп</title>
   <meta name="description" content="Расписание групп очного отделения УТЖТ на сегодня с учётом замен">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232456c7'/%3E%3Ctext x='16' y='21' font-size='11' font-family='sans-serif' font-weight='700' text-anchor='middle' fill='white'%3EУТЖТ%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="favicon.png" type="image/png" sizes="120x120">
   <script>
     // тема до первой отрисовки, чтобы не мигало: светлая / тёмная / (нет — как в телефоне)
     try { var t = localStorage.getItem("utgt-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
@@ -24,9 +24,6 @@
   <script src="teachers.js" defer></script>
   <script src="room-survey.js" defer></script>
   <script src="app.js" defer></script>
-  <script src="appearance-rules.js" defer></script>
-  <script src="appearance-renderer.js" defer></script>
-  <script src="appearance.js" defer></script>
   <script src="force-refresh.js" defer></script>
   <script src="desktop.js" defer></script>
   <script>
@@ -53,7 +50,6 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="groups.css">
   <link rel="stylesheet" href="desktop.css" media="(min-width: 1024px)">
-  <link rel="stylesheet" href="appearance.css">
   <link rel="stylesheet" href="room-survey.css">
 </head>
 <body>
@@ -66,9 +62,6 @@
           <button type="button" id="groupBtn" class="group-chip" aria-haspopup="dialog">
           <span id="groupName">Группа</span><span class="chev" aria-hidden="true">▾</span>
         </button><button type="button" id="themeBtn" class="theme-btn" aria-label="Тема оформления"><span class="ico" aria-hidden="true"></span><span class="lbl"></span></button>
-          <button type="button" id="appearanceBtn" class="theme-btn appearance-button" aria-label="Оформление" title="Оформление" aria-haspopup="dialog" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c0 6-4 10-10 10 6 0 10 4 10 10 0-6 4-10 10-10-6 0-10-4-10-10Z"/></svg>
-          </button>
         </div>
         <p class="eyebrow">УТЖТ <span id="week"></span></p>
         <p class="specialty" id="specialty"></p>
@@ -257,31 +250,5 @@
     </form>
   </dialog>
 
-  <dialog id="appearanceDialog" class="appearance-dialog" aria-labelledby="appearanceTitle">
-    <form method="dialog" id="appearanceForm">
-      <div class="appearance-head">
-        <h2 id="appearanceTitle">Оформление</h2>
-        <button type="submit" class="appearance-close" aria-label="Закрыть">✕</button>
-      </div>
-      <label>Режим <select name="mode">
-        <option value="weather">По погоде</option><option value="season">По времени года</option>
-        <option value="manual">Вручную</option><option value="off">Без эффектов</option>
-      </select></label>
-      <label id="appearanceManual">Эффект <select name="manual">
-        <option value="snow">Снег</option><option value="rain">Дождь</option>
-        <option value="leaves">Осенние листья</option><option value="petals">Цветы и лепестки</option>
-        <option value="lights">Огоньки и звёзды</option><option value="none">Нет</option>
-      </select></label>
-      <label for="appearanceRange">Интенсивность</label>
-      <output id="appearanceIntensity" for="appearanceRange"></output>
-      <input type="range" id="appearanceRange" name="intensity" min="0" max="100">
-      <label class="appearance-check"><input type="checkbox" name="holidays"> Праздничные украшения</label>
-      <label class="appearance-check"><input type="checkbox" name="accumulation"> Снег на карточках и кнопках</label>
-      <label class="appearance-check"><input type="checkbox" name="physics"> Стряхивать снег при нажатии</label>
-      <p id="appearanceHoliday" hidden></p>
-      <button type="button" id="forceRefreshAppearance" class="force-refresh">↻ Принудительно обновить сайт</button>
-      <p id="appearanceWeather" hidden>Погода в Ухте по данным <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>. Без связи используются эффекты по времени года.</p>
-    </form>
-  </dialog>
 </body>
 </html>

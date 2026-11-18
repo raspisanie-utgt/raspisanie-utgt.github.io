@@ -1,5 +1,9 @@
 // Расписание любой группы очного отделения УТЖТ: выбор группы, замены, неделя, «где сейчас преподаватель».
 (function () {
+  try {
+    localStorage.removeItem("utgt-appearance-v1");
+    localStorage.removeItem("utgt-ukhta-weather-v1");
+  } catch (_) { /* хранилище может быть недоступно */ }
   "use strict";
   var A = window.Agenda, C = window.Calendar;
   var STORE_KEY = "utgt-group", WHO_KEY = "utgt-who", TEACHER_KEY = "utgt-teacher", LANG_KEY = "utgt-lang", YEAR_KEY = "utgt-group-year";
@@ -415,8 +419,7 @@
       $("weekView").innerHTML = days.map(function (ag, i) {
         var d = dates[i];
         var body = ag.items.length ? ag.items.map(function (it) {
-          var by = state.data.teachers.by_short || {};
-          var who = String(it.teacher || "").split(" / ").map(function (t) { return by[t.trim()] || t.trim(); }).filter(Boolean).join(" / ");
+          var who = shortTeacher(it.teacher);
           return '<li class="' + (it.changed ? "changed" : "") + '"><span class="t">' + it.startText + "</span>" +
             '<span class="s">' + esc(nice(it.subject)) + (it.changed ? ' <span class="tag">замена</span>' : "") + "</span>" +
             '<span class="r">' + esc(String(it.room || "").split(" / ").map(roomLabel).join(" / ")) + "</span>" +
@@ -428,7 +431,7 @@
     }).catch(function () { renderFailure(token); });
   }
 
-  // Неделя: нажатие на день раскрывает его — время до, номера уроков, полные названия и ФИО
+  // Неделя: нажатие на день раскрывает его — время до, номера уроков, полные названия и преподавателей
   function detHTML(it, lines) {
     var n = it.lessons && it.lessons.length ? (it.lessons[0] === 0 ? "классный час"
       : it.lessons.length > 1 ? "уроки " + it.lessons[0] + "–" + it.lessons[it.lessons.length - 1] : "урок " + it.lessons[0]) : "";
@@ -563,16 +566,20 @@
   $("calendar").addEventListener("keydown", calTap);
   document.addEventListener("click", function (e) { if (!e.target.closest("#calendar li")) popTip(null); });
 
-  // «Изъюрова Н.М.» -> полное ФИО и как обращаться (по имени-отчеству)
+  // Отображаем фамилию и инициалы, включая данные старого кэша.
+  function shortTeacher(teacher) {
+    return String(teacher || "").split(" / ").map(function (name) {
+      var parts = name.trim().split(/\s+/);
+      return parts[0] + (parts.length > 1 ? " " + parts.slice(1).map(function (part) {
+        return part.indexOf(".") >= 0 ? part : part.charAt(0) + ".";
+      }).join("") : "");
+    }).filter(Boolean).join(" / ");
+  }
+
   function teacherInfo(teacher, it) {
     if (!teacher) return it && /Разговоры о важном/i.test(it.subject) ? "Ведёт куратор группы."
       : "Преподаватель неизвестен — этого предмета нет в расписании группы.";
-    var byShort = state.data.teachers.by_short || {};
-    return teacher.split(" / ").map(function (t) {
-      var full = byShort[t.trim()];
-      if (!full) return esc(t) + " — полного имени нет в списке преподавателей на сайте техникума.";
-      return "<strong>" + esc(full) + "</strong>" + (it && it.curator ? "Куратор группы" : "");
-    }).join("");
+    return "<strong>" + esc(shortTeacher(teacher)) + "</strong>" + (it && it.curator ? "Куратор группы" : "");
   }
 
   // Языковая подгруппа: по умолчанию английский (обычное расписание), тумблер — немецкий
@@ -614,7 +621,7 @@
       "<small>Кабинет " + esc(o.room) + ' · <a href="tel:' + esc(o.tel) + '">' + esc(o.phone) + "</a> · " +
       "пн–пт " + o.hours["1"].join("–") + ", сб " + o.hours["6"].join("–") + ", обед " + o.lunch.join("–") +
       "</small></div>" +
-      (curator ? '<div class="office"><strong>Куратор группы</strong><small>' + esc(teacherFull(curator) || curator) + "</small></div>" : "") +
+      (curator ? '<div class="office"><strong>Куратор группы</strong><small>' + esc(shortTeacher(curator) || curator) + "</small></div>" : "") +
       (cwHtml ? '<div class="office"><strong>Курсовые работы и проекты</strong><ul class="plain">' + cwHtml + "</ul></div>" : "") +
       codesHTML(g) +
       "<ul>" + links.map(function (l) {
@@ -672,7 +679,7 @@
       '<span>Телефон</span><b><a href="tel:' + esc(o.tel) + '">' + esc(o.phone) + "</a></b>" +
       "<span>Пн – пт</span><b>" + o.hours["1"].join(" – ") + "</b><span>Суббота</span><b>" + o.hours["6"].join(" – ") + "</b>" +
       "<span>Обед</span><b>" + o.lunch.join(" – ") + "</b></div>" +
-      (curator ? '<h3 class="p-sub">Куратор группы ' + esc(g) + "</h3><p>" + esc(teacherFull(curator) || curator) + "</p>" : "") +
+      (curator ? '<h3 class="p-sub">Куратор группы ' + esc(g) + "</h3><p>" + esc(shortTeacher(curator) || curator) + "</p>" : "") +
       (cwHtml ? '<h3 class="p-sub">Курсовые работы и проекты</h3><ul class="plain">' + cwHtml + "</ul>" : "");
   }
   // кабинеты по корпусам и этажам (data/rooms.json)
@@ -824,7 +831,7 @@
     var hits;
     if (q) {
       hits = state.teacherList.map(function (t) { return t.name || t; }).map(function (n) {
-        var byName = low(teacherFull(n) || n).split(" ").some(function (w) { return w.indexOf(q) === 0; }) || low(n).indexOf(q) === 0;
+        var byName = low(shortTeacher(n) || n).split(" ").some(function (w) { return w.indexOf(q) === 0; }) || low(n).indexOf(q) === 0;
         var subj = byName ? null : ((state.whereSubj || {})[n] || []).filter(function (x) {
           return low(x).split(/[^а-яa-z0-9.]+/).some(function (w) { return w.indexOf(q) === 0; }) || (q.length >= 3 && low(x).indexOf(q) >= 0);
         });
@@ -849,7 +856,7 @@
       var off = C.dayOff(now.date, state.data.calendar, (r[0][0] || {}).group);
       var w = Teachers.whereIs(t, now.date, now.minutes, r[0], state.data.bells, state.data.calendar,
         function (g) { return zamenaForGroup(r[1], g); });
-      var html = "<strong>" + esc(teacherFull(t) || t) + "</strong>";
+      var html = "<strong>" + esc(shortTeacher(t) || t) + "</strong>";
       if (A.isoWeekday(now.date) === 7 || (off && off.kind === "holiday")) {
         html += "<p>Сегодня выходной.</p>";
       } else if (!w.lessons.length) {
@@ -1131,7 +1138,7 @@
       if (it.maybeCancel) tags += '<span class="tag">возможно, отменена — сверьтесь с картинкой</span>';
       else if (it.changed) tags += '<span class="tag">замена</span>';
       if (it.uncertain && !it.maybeCancel) tags += '<span class="tag" title="распознано неуверенно">?</span>';
-      var who = [it.teacher, it.was ? "вместо: " + it.was : ""].filter(Boolean).join(" · ");
+      var who = [shortTeacher(it.teacher), it.was ? "вместо: " + it.was : ""].filter(Boolean).join(" · ");
       var key = it.startText + " " + it.subject;
       var fix = updRow(upd, it), wasLine = "";
       if (fix) {
@@ -1256,10 +1263,9 @@
     $("baseTitle").textContent = "Обычное расписание на " + acc + " (без замен)";
     $("baseList").innerHTML = base.items.length ? base.items.map(function (it) {
       var kept = ag.items.some(function (x) { return x.start === it.start && x.subject === it.subject && !x.changed; });
-      var by = state.data.teachers.by_short || {};
-      var who = String(it.teacher || "").split(" / ").map(function (t) { return by[t.trim()] || t.trim(); }).filter(Boolean).join(" / ");
+      var who = shortTeacher(it.teacher);
       return '<li class="' + (kept ? "" : "gone") + '" tabindex="0" role="button"><span class="t">' + it.startText + "</span>" +
-        '<span class="s"><span class="nm">' + esc(nice(it.subject)) + "</span>" + (it.teacher ? "<small>" + esc(it.teacher) + "</small>" : "") +
+        '<span class="s"><span class="nm">' + esc(nice(it.subject)) + "</span>" + (it.teacher ? "<small>" + esc(shortTeacher(it.teacher)) + "</small>" : "") +
         (kept ? "" : ' <span class="tag">изменено</span>') + "</span>" +
         '<span class="r">' + esc(String(it.room || "").split(" / ").map(roomLabel).join(" / ")) + "</span>" +
         detHTML(it, [nice(it.subject) !== it.subject ? it.subject : "", who].concat(roomPlaces(it.room))) + "</li>";
@@ -1441,7 +1447,6 @@
 
   // ---------- режим преподавателя ----------
 
-  function teacherFull(t) { return (state.data.teachers.by_short || {})[t] || ""; }
 
   // Пары преподавателя на дату по расписаниям всех групп и заменам
   function teacherDay(date) {
@@ -1459,10 +1464,10 @@
   }
 
   function teacherHeader() {
-    var t = state.teacher, full = teacherFull(t);
+    var t = shortTeacher(state.teacher);
     document.title = "Расписание УТЖТ · " + t;
     typeInto($("groupName"), t);
-    $("specialty").textContent = (full ? full + " · " : "") + "расписание преподавателя";
+    $("specialty").textContent = "Расписание преподавателя";
     $("specialty").hidden = false;
   }
 
@@ -1626,10 +1631,10 @@
     }).join("");
     var teachers = state.teacherList || [];
     $("teacherList").innerHTML = !state.teacherList ? '<p class="hint small">Загрузка списка…</p>' : teachers.map(function (t, i) {
-      var full = teacherFull(t);
+      var label = shortTeacher(t);
       // по очереди появляются первые строки, остальные (их не видно без прокрутки) — вместе с последней
       return '<button type="button" data-teacher="' + esc(t) + '" aria-current="' + (t === state.teacher) + '" style="--i:' + Math.min(i, 12) + '">' +
-        "<strong>" + esc(full || t) + "</strong>" + (full ? "<small>" + esc(t) + "</small>" : "") + "</button>";
+        "<strong>" + esc(label) + "</strong>" + "</button>";
     }).join("");
     var who = state.pickWho;
     $("whoSeg").dataset.who = who;
@@ -1786,7 +1791,7 @@
   $("picker").addEventListener("cancel", function (e) {
     if (!state.group && !state.teacher) e.preventDefault(); // первый вход: без выбора закрыть нельзя
   });
-  // Нажатие на урок — показать/скрыть полное ФИО преподавателя
+  // Нажатие на урок — показать/скрыть сведения об уроке
   function toggleLesson(e) {
     if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
     var card = e.target.closest(".lesson");
