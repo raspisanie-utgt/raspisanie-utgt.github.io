@@ -44,45 +44,11 @@ test('mode, Moscow date boundaries, holidays and overlap priority', () => {
   assert.equal(select('season', '01-07', { intensity: 0 }).effect, 'none');
 });
 
-test('weather mapping and seasonal fallback for missing or unknown codes', () => {
-  const map = (weather_code, is_day = 1) => select('weather', '01-10', {}, rules.parseWeather({ weather_code, is_day })).effect;
-  assert.equal(map(85), 'none');
-  assert.equal(map(67), 'rain');
-  assert.equal(map(99), 'rain');
-  assert.equal(map(0), 'sun');
-  assert.equal(map(1, 0), 'lights');
-  assert.equal(map(48), 'cloud');
-  assert.equal(map(500), 'none');
-});
-
-test('weather calls coalesce, reuse cache, skip offline and back off after failure', async () => {
-  let now = 10000;
-  let calls = 0;
-  let fail = false;
-  const store = storage();
-  const fetcher = async (url, options) => {
-    calls++;
-    assert.match(url, /latitude=63\.55446&longitude=53\.70041/);
-    assert.equal(options.credentials, 'omit');
-    return { ok: !fail, json: async () => ({ current: { weather_code: 73, wind_speed_10m: 10 } }) };
-  };
-  const weather = rules.createWeather(store, fetcher, () => now);
-  assert.equal(await weather.load(false), null);
-  const a = weather.load(true);
-  assert.equal(a, weather.load(true));
-  assert.equal((await a).code, 73);
-  assert.equal((await rules.createWeather(store, fetcher, () => now).load(true)).code, 73);
-  assert.equal(calls, 1);
-  now += 31 * 60 * 1000;
-  fail = true;
-  assert.equal(weather.fresh(), null);
-  assert.equal(await weather.load(true), null);
-  assert.equal(await weather.load(true), null);
-  assert.equal(calls, 2);
-  now += 5 * 60 * 1000;
-  fail = false;
-  assert.equal((await weather.load(true)).code, 73);
-  assert.equal(calls, 3);
+test('retired weather preferences normalize to off without seasonal fallback', () => {
+  const prefs = rules.normalize({mode: 'weather', intensity: 100, holidays: true});
+  assert.equal(prefs.mode, 'off');
+  assert.deepEqual(rules.select(prefs, date('10-31')), {effect: 'none', holiday: null, wind: 0});
+  assert.equal(rules.select({mode: 'weather', intensity: 100}, date('09-01')).effect, 'none');
 });
 
 test('snow growth, shedding and melting are bounded, including on small and wide devices', () => {

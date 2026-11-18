@@ -86,21 +86,18 @@ async function probe(browser, w, h) {
     assert.equal(await mode.evaluate(el => el.value), 'manual');
     assert.equal(await control.evaluate(el => el.value), '100');
     assert.equal(await p.locator('html').getAttribute('data-theme'), theme);
-    await mode.selectOption('weather');
-    await close();
-    await p.waitForFunction(() => window.appearanceProbe.rain > 0);
-    assert.equal(weatherCalls, 1);
-    await p.ctx.setOffline(true);
-    await p.clock.runFor(100);
-    const rainBefore = (await counts()).rain;
-    await p.clock.runFor(150);
-    assert.equal((await counts()).rain, rainBefore, 'offline switches to seasonal effects');
-    await p.ctx.setOffline(false);
+    assert.equal(await mode.locator('option[value="weather"]').count(), 0);
+    await p.evaluate(() => {
+      localStorage.setItem('utgt-appearance-v1', JSON.stringify({mode:'weather', intensity:100}));
+      localStorage.setItem('utgt-ukhta-weather-v1', '{}');
+    });
+    await p.reload();
     await settings.click();
-    await mode.selectOption('off');
+    assert.equal(await mode.evaluate(el => el.value), 'off');
+    assert.equal(await p.evaluate(() => localStorage.getItem('utgt-ukhta-weather-v1')), null);
     await close();
     assert.equal(await layer.count(), 0);
-    assert.equal(weatherCalls, 1);
+    assert.equal(weatherCalls, 0);
     problems.push(...p.errs);
   } finally { await p.ctx.close(); }
   return problems;
