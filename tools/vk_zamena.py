@@ -166,6 +166,10 @@ def date_from_image(path, today=None):
             date = date_from_text(text, today, strict=True)
             if date:
                 return date, text
+            whole_text = ocr_text(path, psm=3)
+            whole_date = date_from_text(whole_text, today, strict=True)
+            if whole_date:
+                return whole_date, whole_text
             # На наклонённых и мелких снимках сначала восстанавливаем печатную строку
             # с датой занятий. Дата подписания не заменяет потерянную дату после «на».
             from PIL import ImageOps
@@ -180,11 +184,7 @@ def date_from_image(path, today=None):
                 return dates[0], "\n".join(readings)
             if dates[0] and dates[1] and dates[0] != dates[1]:
                 return None, "\n".join(readings)
-    text = ocr_text(path, psm=3)
-    date = date_from_text(text, today, strict=True)
-    if date:
-        return date, text
-    return date_from_text(text, today), text
+    return date_from_text(whole_text, today), whole_text
 
 
 # ---------- решение: публиковать или задача ----------
