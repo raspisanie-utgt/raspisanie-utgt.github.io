@@ -166,11 +166,25 @@ def date_from_image(path, today=None):
             date = date_from_text(text, today, strict=True)
             if date:
                 return date, text
-    text = ocr_text(path, psm=3)
-    date = date_from_text(text, today, strict=True)
-    if date:
-        return date, text
-    return date_from_text(text, today), text
+            whole_text = ocr_text(path, psm=3)
+            whole_date = date_from_text(whole_text, today, strict=True)
+            if whole_date:
+                return whole_date, whole_text
+            # На наклонённых и мелких снимках сначала восстанавливаем печатную строку
+            # с датой занятий. Дата подписания не заменяет потерянную дату после «на».
+            from PIL import ImageOps
+            prepared, _, borders, _, _ = scraper._recover_grid(im.convert("L"))
+            bottom = min(int(prepared.height * 0.5), borders[0]) if borders and borders[0] > 40 else int(prepared.height * 0.5)
+            header = ImageOps.autocontrast(prepared.crop((0, 0, prepared.width, bottom)))
+            header = header.resize((header.width * 2, header.height * 2), Image.Resampling.LANCZOS)
+            header.save(p)
+            readings = [ocr_text(p, psm=mode) for mode in (6, 11)]
+            dates = [date_from_text(value, today, strict=True) for value in readings]
+            if dates[0] and dates[0] == dates[1]:
+                return dates[0], "\n".join(readings)
+            if dates[0] and dates[1] and dates[0] != dates[1]:
+                return None, "\n".join(readings)
+    return date_from_text(whole_text, today), whole_text
 
 
 # ---------- решение: публиковать или задача ----------
