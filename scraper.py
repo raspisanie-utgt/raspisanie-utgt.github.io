@@ -274,6 +274,30 @@ def subject_code(s):
 def snap_subject(text, vocab):
     if not text:
         return text, True
+    if "/" in text:
+        # Разделитель подгрупп не должен исчезать при подборе одного похожего предмета.
+        depth, start, parts = 0, 0, []
+        for position, char in enumerate(text):
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth = max(0, depth - 1)
+            elif char == "/" and depth == 0:
+                parts.append(text[start:position].strip())
+                start = position + 1
+        if parts:
+            parts.append(text[start:].strip())
+            matched = [snap_subject(part, vocab) for part in parts]
+            return " / ".join(value for value, _ in matched), all(value and sure for value, sure in matched)
+        languages = re.fullmatch(r"(Иностранный язык(?: в профессиональной деятельности)?)\s*"
+                                 r"\((английский|немецкий)\s*/\s*(английский|немецкий)\)", text, re.I)
+        if languages:
+            names = [f"{languages[1]} ({language})" for language in languages.group(2, 3)]
+            exact = [next((name for name in vocab if name.casefold() == value.casefold()), None) for value in names]
+            if all(exact):
+                return " / ".join(exact), True
+        # Не пытаемся угадать одно название вместо составной неподтверждённой строки.
+        return (text, text in vocab)
     if text.casefold().startswith("учебная практика"):
         exact = next((name for name in vocab if name.casefold() == text.casefold()), None)
         return (exact, True) if exact else (text, False)

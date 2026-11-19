@@ -116,7 +116,7 @@ def stress_rows(number, style):
     return rows
 
 
-def generate(output, font, count, stress=False):
+def generate(output, font, count, stress=False, compound=False):
     output.mkdir(parents=True, exist_ok=True)
     marker = output / "SYNTHETIC_ONLY"
     if not marker.exists() and any(output.iterdir()):
@@ -133,6 +133,13 @@ def generate(output, font, count, stress=False):
             profile = ("clean", "tilt", "blur", "shadow", "low", "jpeg", "severe")[number % 7]
             size = 10 + number % 41
             rows = stress_rows(number, style) if stress else make_rows(rng, size, style)
+            if compound:
+                rows += [dict(group='11-П', lessons=[7, 8], time=None,
+                              subject='Иностранный язык (немецкий) / Химия', room='1-14 / 2-7', label=True, style=style),
+                         dict(group='11-В', lessons=[7, 8], time=None,
+                              subject='Иностранный язык (английский / немецкий)',
+                              canonical_subject='Иностранный язык (английский) / Иностранный язык (немецкий)',
+                              room='2-15 / 1-14', label=True, style=style)]
             size = len(rows)
             # Keep a page break in the middle of some groups. A repeated label starts each page.
             cut = rng.randint(size // 3, size * 2 // 3)
@@ -161,6 +168,7 @@ def main():
     parser.add_argument("--font", required=True, type=Path)
     parser.add_argument("--count", default=500, type=int)
     parser.add_argument("--stress", action="store_true", help="Практики, диапазоны, отмены и неизвестный предмет")
+    parser.add_argument("--compound", action="store_true", help="Добавить составные дисциплины и языковые подгруппы")
     args = parser.parse_args()
     if args.count < 1:
         parser.error("--count must be positive")
@@ -168,7 +176,7 @@ def main():
     site_data = Path(__file__).resolve().parents[1] / "data"
     if output.is_relative_to(site_data):
         parser.error("Use a separate synthetic directory")
-    generate(output, args.font, args.count, args.stress)
+    generate(output, args.font, args.count, args.stress, args.compound)
 
 
 if __name__ == "__main__":
