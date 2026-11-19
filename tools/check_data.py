@@ -139,7 +139,18 @@ def check_schedules(groups, staff):
 
 def check_zameny(groups, subjects):
     errors, warnings = [], []
-    vocab = {w for s in subjects for w in words(s)}
+    known = set(subjects)
+    calendar = DATA / 'calendar.json'
+    if calendar.exists():
+        periods = json.loads(calendar.read_text(encoding='utf-8')).get('groups', {})
+        for group in periods.values():
+            for period in group.get('periods', []):
+                name = period.get('name', '').strip()
+                if period.get('type') == 'praktika' and name:
+                    known.add(name)
+                    if re.match(r'^Учебная практика(?:$|[: (])', name):
+                        known.add('Учебная практика')
+    vocab = {w for s in known for w in words(s)}
     anchor = next(iter(groups.values()))["week_anchor"]
     a_date, a_week = dt.date.fromisoformat(anchor["date"]), anchor["week"]
     for p in sorted((DATA / "zameny").glob("????-??-??.json")):
