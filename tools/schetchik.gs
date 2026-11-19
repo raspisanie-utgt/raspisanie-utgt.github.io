@@ -42,6 +42,7 @@ function doGet(e) {
       // Old blank categories mean 'not collected'; never backfill historical categories with zeroes.
       var row = [day].concat(add);
       if (!e || !e.parameter || e.parameter.v !== '2') row = row.slice(0, 6);
+      sh.getRange(last + 1, 1).setNumberFormat('@');
       sh.appendRow(row);
     }
   } finally { lock.releaseLock(); }
@@ -104,6 +105,7 @@ function podgotovitOtchet() {
   try {
     var sh = list_(), ss = sh.getParent(), props = PropertiesService.getScriptProperties();
     var report = ss.getSheetByName('Статистика устройств');
+    if (report && !props.getProperty('statsReportSheetId') && report.getRange(40, 1).getDisplayValue() === 'UTGT_STATS_V2_REPORT') props.setProperty('statsReportSheetId', String(report.getSheetId()));
     if (report && props.getProperty('statsReportSheetId') !== String(report.getSheetId())) {
       throw new Error('Лист «Статистика устройств» уже существует и не принадлежит обновлению.');
     }
@@ -112,23 +114,35 @@ function podgotovitOtchet() {
     shapka_(sh);
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, SHAPKA.length).setFontWeight('bold').setBackground('#e7f0ed');
-    sh.getRange('A:A').setNumberFormat('@');
     sh.getRange(1, 2).setNote('Приблизительные дневные отметки браузеров. Это не точное число людей или физических устройств.');
     sh.getRange(1, 7).setNote('Покрытие новой разбивкой. Старые строки не содержат истории ОС и браузеров.');
     if (!report) {
       report = ss.insertSheet('Статистика устройств');
       props.setProperty('statsReportSheetId', String(report.getSheetId()));
     }
+    var separator = /^(ru|de|fr|it|es|pt|pl|uk|nl|tr|cs|da|fi|sv|no|hu|ro|bg|el|sk|sl|lt|lv|et)(_|$)/i.test(ss.getSpreadsheetLocale()) ? ';' : ',';
+    function localFormulas(rows) { return rows.map(function (r) { return r.map(function (f) { return separator === ';' ? f.replace(/,/g, ';') : f; }); }); }
     // Only the dedicated, owned report is regenerated. Source and backup are never cleared.
     report.clear();
     report.getCharts().forEach(function (chart) { report.removeChart(chart); });
     var src = "'" + sh.getName().replace(/'/g, "''") + "'!";
+    // Normalise dates in the report only: historical native dates and future ISO text both work.
+    var bound = sh.getMaxRows();
+    if (report.getMaxRows() < bound) report.insertRowsAfter(report.getMaxRows(), bound - report.getMaxRows());
+    if (report.getMaxColumns() < 27) report.insertColumnsAfter(report.getMaxColumns(), 27 - report.getMaxColumns());
+    var normalDates = [];
+    for (var n = 2; n <= bound; n++) {
+      var cell = src + 'A' + n;
+      normalDates.push(['=IF(' + cell + '="","",IF(ISNUMBER(' + cell + '),INT(' + cell + '),DATE(VALUE(LEFT(' + cell + ',4)),VALUE(MID(' + cell + ',6,2)),VALUE(RIGHT(' + cell + ',2)))))']);
+    }
+    report.getRange(1, 27).setValue('Дата для расчёта — исходные даты не изменяются');
+    report.getRange(2, 27, bound - 1, 1).setFormulas(localFormulas(normalDates));
+    report.hideColumns(27);
     function sum(col, period) {
-      var r = src + col + '2:' + col;
+      var r = src + col + '2:' + col + bound;
       if (period === 3) return 'SUM(' + r + ')';
       var start = ['TODAY()', 'TODAY()-WEEKDAY(TODAY(),2)+1', 'DATE(YEAR(TODAY()),MONTH(TODAY()),1)'][period];
-      return 'SUMIFS(' + r + ',' + src + 'A2:A,">="&TEXT(' + start + ',"yyyy-mm-dd"),' +
-        src + 'A2:A,"<"&TEXT(TODAY()+1,"yyyy-mm-dd"))';
+      return 'SUMIFS(' + r + ',AA2:AA' + bound + ',">="&(' + start + '),AA2:AA' + bound + ',"<"&(TODAY()+1))';
     }
     report.getRange('A1').setValue('Использование сайта расписания УТЖТ');
     report.getRange('A2').setValue('Дневные отметки браузеров, не уникальные люди. Неделя — с понедельника, месяц — с первого числа.');
@@ -137,16 +151,16 @@ function podgotovitOtchet() {
     ['Сегодня', 'Текущая неделя', 'Текущий месяц', 'Всё время'].forEach(function (label, i) {
       var row = 6 + i;
       report.getRange(row, 1).setValue(label);
-      report.getRange(row, 2, 1, 4).setFormulas([['=' + sum('B', i), '=' + sum('C', i),
-        '=B' + row + '-C' + row, '=' + sum('G', i)]]);
+      report.getRange(row, 2, 1, 4).setFormulas(localFormulas([['=' + sum('B', i), '=' + sum('C', i),
+        '=B' + row + '-C' + row, '=' + sum('G', i)]]));
     });
     function section(row, title, labels, cols) {
       report.getRange(row, 1, 1, 5).setValues([[title, 'Сегодня', 'Неделя', 'Месяц', 'Всё время']]);
       labels.forEach(function (label, j) {
         report.getRange(row + j + 1, 1).setValue(label);
-        report.getRange(row + j + 1, 2, 1, 4).setFormulas([[0, 1, 2, 3].map(function (i) {
+        report.getRange(row + j + 1, 2, 1, 4).setFormulas(localFormulas([[0, 1, 2, 3].map(function (i) {
           return '=' + (cols[j] === '?' ? sum('B', i) + '-(' + ['D', 'E', 'F'].map(function (c) { return sum(c, i); }).join('+') + ')' : sum(cols[j], i));
-        })]);
+        })]));
       });
     }
     section(12, 'Тип устройства', ['Телефон', 'Компьютер', 'Планшет', 'Не определён / старая версия'], ['D', 'E', 'F', '?']);
@@ -158,8 +172,10 @@ function podgotovitOtchet() {
         .setNumHeaders(1).setPosition(5 + 16 * i, 7, 0, 0).setOption('title', c[2])
         .setOption('legend', { position: 'none' }).setOption('width', 620).setOption('height', 300).build());
     });
+    report.getRange(40, 1).setValue('UTGT_STATS_V2_REPORT');
     report.getRange('A1').setFontSize(18).setFontWeight('bold');
     [5, 12, 19, 29].forEach(function (r) { report.getRange(r, 1, 1, 5).setFontWeight('bold').setBackground('#e7f0ed'); });
+    report.setRowHeights(5, 1, 46);
     report.setColumnWidth(1, 310); report.setColumnWidths(2, 4, 130);
     report.getRange('A2:E3').setWrap(true); report.setRowHeights(2, 2, 45);
     report.getRange('B6:E37').setNumberFormat('0'); report.setFrozenRows(5);

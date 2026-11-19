@@ -9,7 +9,7 @@ function fixture(rows) {
   function sheet(name, data) {
     const sh = { name, id:nextId++, data:structuredClone(data), maxCols:26, charts:[], notes:[],
       getSheetId(){return this.id}, getName(){return this.name}, setName(n){this.name=n;return this},
-      getParent(){return ss}, getLastRow(){return this.data.length},
+      getParent(){return ss}, getMaxRows(){return 1000}, insertRowsAfter(){}, hideColumns(){}, getLastRow(){return this.data.length},
       getLastColumn(){return Math.max(...this.data.map(r=>r.length),0)}, getMaxColumns(){return this.maxCols},
       insertColumnsAfter(_,n){this.maxCols+=n}, setFrozenRows(){},setColumnWidth(){},setColumnWidths(){},setRowHeights(){},
       appendRow(r){this.data.push([...r])}, copyTo(){return sheet('copy',this.data)},
@@ -33,7 +33,7 @@ function fixture(rows) {
       }
     };sheets.push(sh);return sh;
   }
-  const ss={getSheets:()=>sheets,getSheetByName:n=>sheets.find(s=>s.name===n),insertSheet:n=>sheet(n,[]),getSpreadsheetTimeZone:()=>ss.tz||'Europe/Moscow'};
+  const ss={getSheets:()=>sheets,getSheetByName:n=>sheets.find(s=>s.name===n),insertSheet:n=>sheet(n,[]),getSpreadsheetLocale:()=> 'ru_RU',getSpreadsheetTimeZone:()=>ss.tz||'Europe/Moscow'};
   const source=sheet('Счётчик',rows);
   let released=0;
   const ctx={PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]??null,setProperty:(k,v)=>{props[k]=v}})},
@@ -70,10 +70,15 @@ test('reports are repeatable, own their sheet, and do not replace source or back
   const f=fixture([head,['2026-11-18',20,8]]);
   f.ctx.podgotovitOtchet();
   const report=f.ss.getSheetByName('Статистика устройств');
+  assert.match(report.data[1][26], /ISNUMBER/);
+  assert.match(report.data[1][26], /;/);
+  assert.doesNotMatch(report.data[1][26], /,/);
+  assert.match(report.data[5][1], /AA2:AA1000/);
+  assert.doesNotMatch(report.data[5][1], /TEXT/);
   const source=structuredClone(f.source.data), backup=structuredClone(f.sheets[1].data);
   assert.equal(report.charts.length,3);
   assert.match(report.data[5][1],/SUMIFS/);assert.match(report.data[8][1],/^=SUM\(/);
-  assert.match(report.data[5][4],/'Счётчик'!G2:G/);
+  assert.match(report.data[5][4],/'Счётчик'!G2:G1000/);
   f.ctx.podgotovitOtchet();assert.equal(f.sheets.length,3);assert.equal(report.charts.length,3);
   assert.deepEqual(f.source.data,source);assert.deepEqual(f.sheets[1].data,backup);
   f.sheets.unshift(f.sheets.pop());assert.equal(f.ctx.list_(),f.source);
@@ -83,4 +88,14 @@ test('unexpected headers, missing table, foreign report and timezone fail withou
   f=fixture([head]);delete f.props.table;assert.throws(()=>f.ctx.list_(),/table/);
   f=fixture([head]);f.ss.insertSheet('Статистика устройств');assert.throws(()=>f.ctx.podgotovitOtchet(),/уже существует/);assert.equal(f.sheets.length,2);
   f=fixture([head]);f.ss.tz='America/New_York';assert.throws(()=>f.ctx.podgotovitOtchet(),/пояс/);assert.equal(f.sheets.length,1);
+});
+
+test('native numeric dates keep their value when the report is prepared',()=>{
+  const f=fixture([head,[46344,121,27]]);
+  f.ctx.podgotovitOtchet();
+  assert.equal(f.source.data[1][0],46344);
+  assert.equal(f.source.data[1][1],121);
+  const report=f.ss.getSheetByName('Статистика устройств');
+  assert.match(report.data[1][26],/IF\(ISNUMBER/);
+  assert.match(report.data[1][26],/INT\(/);
 });
