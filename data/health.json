@@ -1,9 +1,9 @@
 {
- "failures": 5,
+ "failures": 6,
  "failing": [
-  "setup"
+  "scrape"
  ],
  "since": "2026-11-18T23:58+03:00",
- "last_check": "2026-11-19T15:17+03:00",
+ "last_check": "2026-11-19T20:01+03:00",
  "issue_open": true
 }
