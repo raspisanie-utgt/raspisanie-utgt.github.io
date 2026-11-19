@@ -219,6 +219,10 @@ def known_rooms():
 def snap_room(room, known):
     """Черта таблицы сразу за номером читается как «1»: «1-8|» -> «1-81». Такого кабинета нет,
     а «1-8» есть — берём его."""
+    if "/" in room:
+        parts = [part.strip() for part in room.split("/")]
+        if all(part and part in known for part in parts):
+            return " / ".join(parts)
     if room and known and room not in known and room[-1].isdigit() and room[:-1] in known:
         return room[:-1]
     return room
@@ -313,13 +317,7 @@ def _reread_legacy_subject(image, box, vocab):
 
 
 
-def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate=False):
-    """Находит сетку таблицы и распознаёт её построчно, ячейка за ячейкой.
-    continued — картинка продолжает таблицу с предыдущей картинки того же дня: шапки «группа / урок» на ней
-    может не быть, строки идут сразу."""
-    rooms = known_rooms() if rooms is None else rooms
-    im = Image.open(path).convert("L")
-    ink = np.array(im) < 128
+def _table_grid(ink):
     hlines = [(s + e) // 2 for s, e in _runs(ink.mean(1) > 0.5)]
     # на картинке может быть всё распоряжение: длинные линии бланка над таблицей мешают найти столбцы —
     # берём самую большую группу близко стоящих линий (это и есть таблица)
@@ -333,9 +331,43 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
         if len(best) >= 3:
             hlines = best
     if len(hlines) < 3:
-        return {"ok": False, "error": "таблица не найдена", "rows": []}
+        return hlines, []
     band = ink[hlines[0]:hlines[-1]]
     vlines = [(s + e) // 2 for s, e in _runs(band.mean(0) > 0.6)]
+    return hlines, vlines
+
+
+def _grid_continues_below(ink, rows, columns):
+    """Не принимаем внутреннюю линию за нижний край длинной таблицы."""
+    end = rows[-1]
+    if end + 10 >= ink.shape[0]:
+        return False
+    return sum(ink[end + 4:end + 11, max(0, x - 4):x + 5].any(1).mean() >= 0.65
+               for x in columns) >= 3
+
+
+def _recover_grid(image):
+    ink = np.asarray(image) < 128
+    rows, columns = _table_grid(ink)
+    if len(rows) >= 3 and len(columns) >= 4:
+        return image, ink, rows, columns, 0
+    contrast = ImageOps.autocontrast(image, cutoff=1)
+    candidates = []
+    for angle in (0, -0.5, 0.5, -1, 1, -1.5, 1.5, -2, 2, -2.5, 2.5, -3, 3):
+        rotated = contrast.rotate(angle, Image.Resampling.BICUBIC, fillcolor=255)
+        mask = np.asarray(rotated) < 128
+        hlines, vlines = _table_grid(mask)
+        if len(vlines) == 5 and len(hlines) >= 4 and not _grid_continues_below(mask, hlines, vlines):
+            candidates.append((rotated, mask, hlines, vlines, angle))
+    return max(candidates, key=lambda item: (len(item[2]), -abs(item[4]))) if candidates else (image, ink, rows, columns, 0)
+
+
+def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate=False):
+    """Находит сетку таблицы; продолжение листа может не содержать заголовок."""
+    rooms = known_rooms() if rooms is None else rooms
+    im, ink, hlines, vlines, angle = _recover_grid(Image.open(path).convert("L"))
+    if len(hlines) < 3:
+        return {"ok": False, "error": "таблица не найдена", "rows": []}
     if len(vlines) < 4:
         return {"ok": False, "error": "не найдены столбцы таблицы", "rows": []}
     row_h = np.median(np.diff(hlines))
@@ -382,6 +414,8 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
             continue  # пустая строка (хвост у обрезанного снизу снимка) — не строка таблицы
         joined = " ".join(raw).lower()
         header = "урок" in joined and ("групп" in joined or "трупп" in joined)
+        if not in_table and not header:
+            header = "дисциплин" in joined and "аудитор" in joined and bool(re.search(r"групп|урок", joined))
         if alternate and not in_table and "групп" in joined:
             header_crop = im.crop((vlines[1] + 2, y0 + 2, vlines[2] - 1, y1 - 1))
             header_crop = header_crop.resize((header_crop.width * scale, header_crop.height * scale), Image.LANCZOS)
@@ -479,7 +513,8 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
                      "room_alts": room_alts if len(room_alts) > 1 else []})
     return {"ok": in_table and bool(rows), "title": title, "rows": rows,
             # рамка таблицы на картинке: сайт показывает только её, крупно (x0, y0, x1, y1, ширина, высота)
-            "box": [int(vlines[0]), int(hlines[0]), int(vlines[-1]), int(hlines[-1]), im.width, im.height],
+            "box": None if angle else [int(vlines[0]), int(hlines[0]), int(vlines[-1]), int(hlines[-1]), im.width, im.height],
+            "deskew_angle": angle,
             "group_doubt": group_doubt,
             "error": None if in_table else "не найдена шапка таблицы", "in_table": in_table}
 
