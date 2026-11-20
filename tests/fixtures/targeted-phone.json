@@ -1,0 +1,96 @@
+{
+  "id": 14,
+  "split": "train",
+  "test_only": true,
+  "date": "2026-11-19",
+  "signed": "2026-11-14",
+  "style": "merged",
+  "profile": "phone",
+  "pages": [
+    {
+      "file": "train/test-0014-1.jpg",
+      "rows": [
+        {
+          "group": "11-Д",
+          "lessons": [
+            1,
+            2
+          ],
+          "time": null,
+          "subject": "Отменить",
+          "room": ""
+        },
+        {
+          "group": "11-Д",
+          "lessons": [
+            3,
+            4
+          ],
+          "time": null,
+          "subject": "Отменить",
+          "room": ""
+        },
+        {
+          "group": "11-Д",
+          "lessons": [
+            5,
+            6
+          ],
+          "time": null,
+          "subject": "Отменить",
+          "room": ""
+        },
+        {
+          "group": "31-А",
+          "lessons": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "time": null,
+          "subject": "Учебная практика",
+          "room": "1-10"
+        },
+        {
+          "group": "41-А",
+          "lessons": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "time": null,
+          "subject": "МДК.01.03 Теоретические основы построения и эксплуатации микропроц. и диагност. систем автоматики",
+          "room": "1-9"
+        },
+        {
+          "group": "11-В",
+          "lessons": [
+            7,
+            8
+          ],
+          "time": null,
+          "subject": "Иностранный язык (английский) / Иностранный язык (немецкий)",
+          "room": "2-15 / 1-14"
+        },
+        {
+          "group": "11-П",
+          "lessons": [
+            7,
+            8
+          ],
+          "time": null,
+          "subject": "Иностранный язык (немецкий) / Химия",
+          "room": "1-14 / 2-7"
+        }
+      ]
+    }
+  ],
+  "compact": false,
+  "require_review": false
+}

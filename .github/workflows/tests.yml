@@ -25,10 +25,20 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Установить tesseract
         run: |
-          P="tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng"
+          P="tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng fontconfig fonts-liberation"
           sudo apt-get install -y -q $P || { sudo apt-get update -q && sudo apt-get install -y -q $P; }
       - name: Тесты
         run: |
           python -m pytest tests -q
           node --test tests/*.test.js
           python build_site.py
+      - name: Распознавание 64 сгенерированных проблемных документов
+        run: bash tools/check_generated_ocr.sh
+      - name: Сохранить отчёт OCR
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-ocr-${{ github.run_id }}
+          path: _proverka/generated-ocr/
+          if-no-files-found: warn
+          retention-days: 14
