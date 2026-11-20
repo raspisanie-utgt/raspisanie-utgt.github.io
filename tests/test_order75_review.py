@@ -46,6 +46,22 @@ def test_order75_archived_photo_matches_all_verified_rows_without_publishing(tmp
     assert not list(tmp_path.iterdir())
 
 
+def test_order76_unconfirmed_language_pair_still_requires_review(tmp_path, monkeypatch):
+    exe = shutil.which("tesseract")
+    if not exe or not {b"rus", b"eng"} <= set(subprocess.check_output([exe, "--list-langs"]).splitlines()):
+        pytest.skip("Russian and English Tesseract data required")
+    data = Path(__file__).resolve().parents[1] / "data"
+    photo = next((data / "vk-review").glob("*/89_1.png"))
+    monkeypatch.setattr(scraper, 'DATA', data)
+    monkeypatch.setattr(vk_zamena, 'add_ai_suggestion', lambda *args: None)
+    result = vk_zamena.publish([photo], tmp_path, dt.date(2026, 11, 20), dry=True)
+    assert result['date'] == '2026-11-19'
+    assert result['status'] == 'uncertain'
+    assert len(result['ocr_rows'][0]) == 17
+    assert '11-В' in result['reason'] and 'название дисциплины не подтверждено' in result['reason']
+    assert not list(tmp_path.iterdir())
+
+
 def test_review_details_distinguishes_ocr_and_timetable_checks():
     row = {"group": "11-А", "lessons": [9, 10], "subject": scraper.CANCEL,
            "uncertain": True, "review": ["OCR: чтения номеров уроков расходятся"]}
