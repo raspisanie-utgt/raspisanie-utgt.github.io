@@ -7,7 +7,7 @@
 // свойство скрипта GH_TOKEN (ключ GitHub с правом «Actions: чтение и запись» только для репозитория
 // raspisanie-utgt.github.io) → выбрать функцию ustanovit → «Выполнить» → разрешить доступ.
 
-var PAGE = "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html";
+var PAGE = "https://utgt-pgups.ru/index.php?option=com_content&view=article&id=58";
 var WORKFLOW = "https://api.github.com/repos/raspisanie-utgt/raspisanie-utgt.github.io/actions/workflows/update.yml/dispatches";
 
 // «Отпечаток» страницы: картинки распоряжений (адрес и содержимое — учебная часть может перезалить
