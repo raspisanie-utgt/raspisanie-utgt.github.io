@@ -388,3 +388,27 @@ def test_known_groups_from_schedule(tmp_path, monkeypatch):
     monkeypatch.setattr(scraper, "DATA", tmp_path)
     assert scraper.normalize_group("21-В") == ("21-В", True)
     assert scraper.normalize_group("31-В")[1] is False
+
+
+@needs_tesseract
+@pytest.mark.parametrize('filename', ['order77.png', 'order77-vk.jpg'])
+def test_order77_independent_reading_preserves_letters(filename):
+    # Все 19 строк сверены с официальным №77 на 20.11.2026, включая 11-Д / Химию,
+    # 11-В / Литературу, объединённые группы, отмену и длинное название МДК.01.03.
+    expected = json.loads((FIX / 'order77-expected.json').read_text(encoding='utf-8'))
+    table = scraper.ocr_table(FIX / filename, scraper.subject_vocab(), alternate=True)
+    scraper.check_with_schedule([table], '2026-11-20', table.get('title', ''))
+    assert table['ok'] and not table['group_doubt']
+    assert len(table['rows']) == 19
+    assert scraper.all_group_changes([table]) == expected
+
+
+@needs_tesseract
+def test_independent_reading_keeps_thick_rules_out_of_large_rows():
+    expected = json.loads((FIX / 'synthetic-blurred-cancellations.json').read_text(encoding='utf-8'))
+    table = scraper.ocr_table(FIX / 'synthetic-blurred-cancellations.png', scraper.subject_vocab(), alternate=True)
+    assert table['ok'] and len(table['rows']) == len(expected)
+    for actual, reference in zip(table['rows'], expected):
+        assert not actual['uncertain']
+        for field in ('group', 'lessons', 'time', 'subject', 'room'):
+            assert actual[field] == reference[field]
