@@ -398,7 +398,10 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
     scale = max(3, int(round(66 / max(row_h, 1))))
 
     def cell(x0, x1, y0, y1, psm, k=None, pad=False, lang="rus", extra=()):
-        c = im.crop((x0 + 3, y0 + 3, x1 - 3, y1 - 3) if alternate
+        # В низких строках поля по 3 пикселя срезают нижние части букв (Д -> Л).
+        # У крупных строк прежние поля убирают толстые/размытые линии сетки.
+        c = im.crop((x0 + 3, y0 + 2, x1 - 3, y1 - 1) if alternate and row_h < 24
+                    else (x0 + 3, y0 + 3, x1 - 3, y1 - 3) if alternate
                     else (x0 + 2, y0 + 2, x1 - 1, y1 - 1))
         # пусто ли: считаем и серые точки — мелкий размытый текст бывает совсем не чёрным,
         # и «11-В» иначе принимается за пустую ячейку (строка молча уходит предыдущей группе)
