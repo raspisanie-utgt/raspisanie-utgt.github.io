@@ -1,0 +1,30 @@
+name: Независимый сторож замен
+
+on:
+  schedule:
+    - cron: "*/5 3-19 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: source-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Сравнить оригиналы с опубликованными данными
+        run: python tools/watch_changes.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
