@@ -30,7 +30,7 @@ import utgt_net  # noqa: E402
 from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 
-URL = "https://utgt-pgups.ru/ochnoe-zaochnoe-otdelenie/58-zamena-zanyatij.html"
+URL = "https://utgt-pgups.ru/index.php?option=com_content&view=article&id=58"
 TZ = ZoneInfo("Europe/Moscow")  # Ухта живёт по московскому времени
 ROOT = Path(__file__).resolve().parent
 # данные сайта; тесты подменяют на замороженный снимок (tests/conftest.py)
