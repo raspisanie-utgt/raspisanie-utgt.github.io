@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -18,7 +19,7 @@ def test_order75_model_range_requires_every_lesson(lessons):
     assert vk_ai._row(row, {"31-А"})[1] == tuple(row["lessons"])
 
 
-def test_order75_archived_photo_reports_uncertainties_without_publishing(tmp_path, monkeypatch):
+def test_order75_archived_photo_matches_all_verified_rows_without_publishing(tmp_path, monkeypatch):
     exe = shutil.which("tesseract")
     if not exe or not {b"rus", b"eng"} <= set(subprocess.check_output([exe, "--list-langs"]).splitlines()):
         pytest.skip("Russian and English Tesseract data required")
@@ -26,15 +27,22 @@ def test_order75_archived_photo_reports_uncertainties_without_publishing(tmp_pat
     photo = next((data / "vk-review").glob("*/82_1.png"))
     monkeypatch.setattr(scraper, "DATA", data)
     monkeypatch.delenv("OPENROUTER_MODE", raising=False)
+    readings = []
+    read_table = scraper.ocr_table
+    def capture(*args, **kwargs):
+        table = read_table(*args, **kwargs)
+        readings.append(table)
+        return table
+    monkeypatch.setattr(scraper, 'ocr_table', capture)
     result = vk_zamena.publish([photo], tmp_path, dt.date(2026, 11, 17), dry=True)
     assert result["date"] == "2026-11-18"
-    assert result["status"] == "uncertain"
-    assert len(result["ocr_rows"][0]) == 15
-    assert "Распознано строк: 15." in result["reason"]
-    assert "OCR/справочник: название дисциплины не подтверждено" not in vk_zamena.review_details(
-        [scraper.ocr_table(photo, scraper.subject_vocab())])
-    assert "повторное OCR" in result["reason"]
-    assert "Сверьте" in result["reason"]
+    assert result["status"] == "ok" and result["dry"]
+    # Сверено со всеми 15 строками изображения №75, а не с прежним статусом OCR.
+    expected = json.loads((Path(__file__).parent / 'fixtures/order75-expected.json').read_text(encoding='utf-8'))
+    assert len(readings) == 2
+    for table in readings:
+        assert table['ok'] and len(table['rows']) == 15
+        assert scraper.all_group_changes([table]) == expected
     assert not list(tmp_path.iterdir())
 
 
