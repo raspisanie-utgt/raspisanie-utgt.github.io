@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/5 3-19 * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/watch.yml
+      - tools/watch_changes.py
 
 permissions:
   contents: read
