@@ -1,0 +1,272 @@
+{
+ "date": "2026-11-24",
+ "source": "https://utgt-pgups.ru/index.php?option=com_content&view=article&id=58",
+ "fetched_at": "2026-11-23T16:14+03:00",
+ "first_seen": "2026-11-23T16:14+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": "https://utgt-pgups.ru/images/24-11-2026.png",
+   "file": "2026-11-24-1.png",
+   "sha1": "b534b247735c05aa67b7816fdb3f171b404f42e6",
+   "table": [
+    16,
+    228,
+    687,
+    750,
+    705,
+    767
+   ]
+  }
+ ],
+ "title": "Вторник, 2-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": false,
+ "ocr_group_doubt": false,
+ "week_doubt": false,
+ "groups_in_order": [
+  "21-А",
+  "21-Л",
+  "21-П",
+  "21-С",
+  "31-А",
+  "31-Д",
+  "31-П",
+  "31-С",
+  "41-А",
+  "41-П",
+  "41-С"
+ ],
+ "all_changes": {
+  "21-П": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Иностранный язык (английский)",
+    "room": "2-15",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Электротехника и электроника",
+    "room": "1-14",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Общий курс железных дорог",
+    "room": "2-12",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Электрические измерения",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Математические методы решения прикладных профессиональных задач",
+    "room": "1-28",
+    "uncertain": false
+   }
+  ],
+  "21-Л": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Материаловедение",
+    "room": "2-12",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (английский)",
+    "room": "2-15",
+    "uncertain": false
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-15",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-15",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-25",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.02.01 Основы технического обслуживания устройств систем СЦБ и ЖАТ / Иностранный язык (немецкий)",
+    "room": "1-9 11-15",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.02.01 Основы технического обслуживания устройств систем СЦБ и ЖАТ",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-29",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Иностранный язык (немецкий)",
+    "room": "1-15",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Экономика, организация и планирование в путевом хозяйстве",
+    "room": "2-12",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "МДК.01.02 Теоретические основы построения и эксплуатации перегонных систем железнодорожной автоматики",
+    "room": "1-10",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6,
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Экономика организации",
+    "room": "1-10",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Охрана труда",
+    "room": "1-24",
+    "uncertain": false
+   }
+  ]
+ }
+}
