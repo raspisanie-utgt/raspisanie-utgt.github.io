@@ -732,6 +732,18 @@ def subject_vocab():
     return sorted(names | set(EXTRA_SUBJECTS))
 
 
+def retain_previous_on_failure(meta, old):
+    """A failed empty read is not evidence that previously published changes vanished."""
+    if meta.get('images') and not meta.get('ocr_ok') and not meta.get('all_changes'):
+        meta['ocr_uncertain'] = True
+        if old and old.get('all_changes'):
+            meta['all_changes'] = old['all_changes']
+            meta['groups_in_order'] = old.get('groups_in_order') or sorted(old['all_changes'])
+            meta['title'] = meta.get('title') or old.get('title', '')
+            meta['retained_previous'] = True
+    return meta
+
+
 def process_block(block, session, vocab, out_dir=OUT_DIR, log=print):
     """Скачивает картинки дня, распознаёт, пишет <date>.json. True, если что-то изменилось."""
     date = block["date"]
@@ -787,6 +799,7 @@ def process_block(block, session, vocab, out_dir=OUT_DIR, log=print):
         "all_changes": all_changes,
     }
     apply_manual(meta)
+    retain_previous_on_failure(meta, old)
     write_atomic(meta_path, json.dumps(meta, ensure_ascii=False, indent=1))
     log(f"{date}: {len(images)} картинок, групп с заменами {len(all_changes)}, ocr_ok={meta['ocr_ok']}")
     return True
@@ -810,6 +823,7 @@ def reprocess(out_dir=OUT_DIR, vocab=None, log=print):
             if t.get("box"):
                 i["table"] = t["box"]
         all_changes = all_group_changes(tables)
+        old = dict(meta)
         meta.pop("group", None)
         meta.pop("changes", None)
         meta.update(title=next((t["title"] for t in tables if t.get("title")), "") or meta.get("title", ""),
@@ -820,6 +834,8 @@ def reprocess(out_dir=OUT_DIR, vocab=None, log=print):
                     groups_in_order=sorted({r["group"] for t in tables for r in t["rows"] if r["group"]}),
                     all_changes=all_changes)
         apply_manual(meta)
+        meta.pop('retained_previous', None)
+        retain_previous_on_failure(meta, old)
         write_atomic(path, json.dumps(meta, ensure_ascii=False, indent=1))
         log(f"{meta['date']}: групп с заменами {len(all_changes)}")
 
