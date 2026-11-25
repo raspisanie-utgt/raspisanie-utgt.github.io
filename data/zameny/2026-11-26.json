@@ -1,50 +1,10 @@
 {
  "date": "2026-11-26",
  "source": "https://utgt-pgups.ru/index.php?option=com_content&view=article&id=58",
- "fetched_at": "2026-11-24T15:57+03:00",
+ "fetched_at": "2026-11-25T09:38+03:00",
  "first_seen": "2026-11-24T15:57+03:00",
- "updated_at": null,
- "prev_all_changes": null,
- "images": [
-  {
-   "url": "https://utgt-pgups.ru/images/26-11-2026.png",
-   "file": "2026-11-26-1.png",
-   "sha1": "455c28214ee70083673750d6959681b4899afebc",
-   "table": [
-    15,
-    197,
-    567,
-    784,
-    579,
-    798
-   ]
-  }
- ],
- "title": "",
- "po_raspisaniyu": false,
- "ocr_ok": true,
- "ocr_uncertain": true,
- "ocr_group_doubt": false,
- "week_doubt": false,
- "groups_in_order": [
-  "11-А",
-  "11-В",
-  "11-Д",
-  "11-Л",
-  "11-П",
-  "11-С",
-  "21-А",
-  "21-Л",
-  "21-С",
-  "31-А",
-  "31-Д",
-  "31-П",
-  "31-С",
-  "41-А",
-  "41-Д",
-  "41-С"
- ],
- "all_changes": {
+ "updated_at": "2026-11-25T09:38+03:00",
+ "prev_all_changes": {
   "11-П": [
    {
     "lessons": [
@@ -359,5 +319,28 @@
     "uncertain": false
    }
   ]
- }
+ },
+ "images": [
+  {
+   "url": "https://utgt-pgups.ru/images/26.11_26.png",
+   "file": "2026-11-26-1.png",
+   "sha1": "dbb9ac0bd2f03cc1398c3f70f646c81c2d326f74",
+   "table": [
+    25,
+    123,
+    360,
+    471,
+    383,
+    479
+   ]
+  }
+ ],
+ "title": "",
+ "po_raspisaniyu": false,
+ "ocr_ok": false,
+ "ocr_uncertain": false,
+ "ocr_group_doubt": false,
+ "week_doubt": false,
+ "groups_in_order": [],
+ "all_changes": {}
 }
