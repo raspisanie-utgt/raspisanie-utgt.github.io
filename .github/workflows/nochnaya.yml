@@ -30,7 +30,7 @@ jobs:
       - name: Питон, tesseract и браузер для проверок
         run: |
           pip install -r requirements.txt
-          P="tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng"
+          P="tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng fontconfig fonts-liberation"
           sudo apt-get install -y -q $P || { sudo apt-get update -q && sudo apt-get install -y -q $P; }
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium
@@ -46,6 +46,16 @@ jobs:
           python tools/check_data.py >> _proverka/00_testy.txt 2>&1 || k=1
           tail -60 _proverka/00_testy.txt
           echo "ИТОГ: проблем $k" >> _proverka/00_testy.txt
+
+      - name: Сгенерированные проблемные распоряжения
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p _proverka
+          k=0
+          bash tools/check_generated_ocr.sh > _proverka/01_ocr_targeted.txt 2>&1 || k=1
+          tail -60 _proverka/01_ocr_targeted.txt
+          echo "01_ocr_targeted              проблем: $k" >> _proverka/svodka.txt
 
       - name: Полная проверка в браузере
         continue-on-error: true

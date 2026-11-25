@@ -216,11 +216,15 @@ def known_rooms():
     return rooms
 
 
+def is_known_room(room, known):
+    return bool(room) and all(part.strip() in known for part in re.split(r"[/;]", room))
+
+
 def snap_room(room, known):
     """Черта таблицы сразу за номером читается как «1»: «1-8|» -> «1-81». Такого кабинета нет,
     а «1-8» есть — берём его."""
-    if "/" in room:
-        parts = [part.strip() for part in room.split("/")]
+    if "/" in room or ";" in room:
+        parts = [part.strip() for part in re.split(r"[/;]", room)]
         if all(part and part in known for part in parts):
             return " / ".join(parts)
     if room and known and room not in known and room[-1].isdigit() and room[:-1] in known:
@@ -271,9 +275,51 @@ def subject_code(s):
     return m.group(1).upper() + "." + re.sub(r"[.\s]+", ".", m.group(2)) if m else None
 
 
+def _exact_language_pair(text, vocab):
+    match = re.fullmatch(r"(Иностранный язык(?: в профессиональной деятельности)?)\s*"
+                         r"\((английский|немецкий)\s*[/;:|]\s*(английский|немецкий)\)", text, re.I)
+    if not match:
+        return None
+    names = [f"{match[1]} ({language})" for language in match.group(2, 3)]
+    exact = [next((name for name in vocab if name.casefold() == value.casefold()), None) for value in names]
+    return " / ".join(exact) if all(exact) else None
+
+
+def _looks_like_language_pair(text):
+    match = re.fullmatch(r"([^()]*)\(([^()]*)\)", text)
+    if not match or not re.search(r"[/;:|]|\s", match[2].strip()):
+        return False
+    return ('язык' in match[1].casefold()
+            or any(token.startswith(('англ', 'нем')) for token in re.findall(r'[а-яё]+', match[2].casefold())))
+
+
+def _within_one_edit(left, right):
+    left, right = left.casefold(), right.casefold()
+    if len(left) == len(right):
+        return sum(a != b for a, b in zip(left, right)) <= 1
+    if abs(len(left) - len(right)) != 1:
+        return False
+    short, long = sorted((left, right), key=len)
+    return any(long[:index] + long[index + 1:] == short for index in range(len(long)))
+
+
+def _same_language_slots(original, recovered):
+    def slots(text):
+        match = re.search(r'\(([^()]*)\)\s*$', text)
+        return re.split(r'\s*[/;:|]\s*', match[1].strip()) if match else []
+    before, after = slots(original), slots(recovered)
+    return len(before) == len(after) == 2 and all(_within_one_edit(a, b) for a, b in zip(before, after))
+
+
 def snap_subject(text, vocab):
     if not text:
         return text, True
+    pair = _exact_language_pair(text, vocab)
+    if pair:
+        return pair, True
+    if _looks_like_language_pair(text):
+        # Потерянная косая черта не должна превращать две подгруппы в один похожий предмет.
+        return text, False
     if "/" in text:
         # Разделитель подгрупп не должен исчезать при подборе одного похожего предмета.
         depth, start, parts = 0, 0, []
@@ -289,13 +335,6 @@ def snap_subject(text, vocab):
             parts.append(text[start:].strip())
             matched = [snap_subject(part, vocab) for part in parts]
             return " / ".join(value for value, _ in matched), all(value and sure for value, sure in matched)
-        languages = re.fullmatch(r"(Иностранный язык(?: в профессиональной деятельности)?)\s*"
-                                 r"\((английский|немецкий)\s*/\s*(английский|немецкий)\)", text, re.I)
-        if languages:
-            names = [f"{languages[1]} ({language})" for language in languages.group(2, 3)]
-            exact = [next((name for name in vocab if name.casefold() == value.casefold()), None) for value in names]
-            if all(exact):
-                return " / ".join(exact), True
         # Не пытаемся угадать одно название вместо составной неподтверждённой строки.
         return (text, text in vocab)
     if text.casefold().startswith("учебная практика"):
@@ -326,7 +365,44 @@ def read_binary_cell(crop, scale, threshold, psm):
     return _tesseract(ImageOps.expand(binary.crop(bounds), border=8, fill=255), psm) if bounds else ""
 
 
-def _reread_legacy_subject(image, box, vocab):
+def read_cell_variants(image, box, clean_grid=False):
+    x0, y0, x1, y1 = box
+    readings = []
+    for scale, threshold, psm in ((3, None, 6), (5, 190, 7)):
+        crop = image.crop((x0 + 3, y0 + 1, x1 - 3, y1 - 1))
+        if crop.width <= 0 or crop.height <= 0:
+            return []
+        if clean_grid:
+            pixels = np.asarray(crop)
+            background = np.percentile(pixels, 90, axis=0)
+            normalized = np.clip(pixels.astype(float) + (255 - background), 0, 255)
+            foreground = pixels < min(192, float(np.percentile(pixels, 90)) - 24)
+            normalized[foreground.mean(axis=1) > 0.5, :] = 255
+            normalized[:, foreground.mean(axis=0) > 0.85] = 255
+            crop = Image.fromarray(normalized.astype(np.uint8))
+        enlarged = ImageOps.autocontrast(crop.resize((crop.width * scale, crop.height * scale), Image.LANCZOS))
+        if threshold is not None:
+            enlarged = enlarged.point(lambda p: 255 if p >= threshold else 0)
+        bounds = ImageOps.invert(enlarged).getbbox()
+        if not bounds:
+            return []
+        readings.append(_tesseract(ImageOps.expand(enlarged.crop(bounds), border=12, fill=255), psm))
+    return readings
+
+
+def _reread_room(image, box, rooms, original):
+    readings = read_cell_variants(image, box, True)
+    if len(readings) != 2:
+        return None
+    normalized = [snap_room(fix_digits(text).replace(" ", ""), rooms) for text in readings]
+    if normalized[0] != normalized[1] or not is_known_room(normalized[0], rooms):
+        return None
+    if re.search(r"[/;]", original) and "/" not in normalized[0]:
+        return None
+    return normalized[0]
+
+
+def _reread_legacy_subject(image, box, vocab, original=None):
     x0, y0, x1, y1 = box
     readings = []
     for inset, scale, threshold, psm in ((2, 3, 180, 6), (3, 4, 195, 7)):
@@ -335,8 +411,22 @@ def _reread_legacy_subject(image, box, vocab):
             return None
         readings.append(read_binary_cell(crop, scale, threshold, psm))
     first, second = readings
-    if first == second and first != CANCEL and first in vocab:
+    compound = bool(original and ("/" in original or _looks_like_language_pair(original)))
+    if first == second and first != CANCEL and first in vocab and not compound:
         return first
+    # Старые бинарные обрезки не подходят для мелких букв и составных дисциплин.
+    # Два заранее заданных прохода; принимаем только одинаковые буквальные чтения
+    # из справочника либо точную пару известных языков. Нечёткий подбор здесь запрещён.
+    readings = read_cell_variants(image, box)
+    if len(readings) != 2:
+        return None
+    first, second = readings
+    if first == second and first != CANCEL:
+        if first in vocab and not compound:
+            return first
+        pair = _exact_language_pair(first, vocab)
+        if pair and (not original or (_looks_like_language_pair(original) and _same_language_slots(original, first))):
+            return pair
     return None
 
 
@@ -386,6 +476,24 @@ def _recover_grid(image):
     return max(candidates, key=lambda item: (len(item[2]), -abs(item[4]))) if candidates else (image, ink, rows, columns, 0)
 
 
+def cell_ink_fraction(image, ignore_rules=False):
+    pixels = np.asarray(image)
+    if image.width <= 4 or image.height <= 4:
+        return 0.0
+    # Серый фон и тень не являются текстом. Тонкая оставшаяся сетка тоже не должна
+    # превращать пустую аудиторию отменённого занятия в «непрочитанный кабинет».
+    threshold = min(192, float(np.percentile(pixels, 90)) - 24)
+    foreground = pixels < threshold
+    if ignore_rules:
+        horizontal = foreground.mean(axis=1) > 0.5
+        vertical = foreground.mean(axis=0) > 0.85
+        foreground[horizontal, :] = False
+        foreground[:, vertical] = False
+        if image.width > 8 and image.height > 8 and not foreground[3:-3, 3:-3].any():
+            return 0.0
+    return float(foreground.mean())
+
+
 def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate=False):
     """Находит сетку таблицы; продолжение листа может не содержать заголовок."""
     rooms = known_rooms() if rooms is None else rooms
@@ -405,7 +513,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
                     else (x0 + 2, y0 + 2, x1 - 1, y1 - 1))
         # пусто ли: считаем и серые точки — мелкий размытый текст бывает совсем не чёрным,
         # и «11-В» иначе принимается за пустую ячейку (строка молча уходит предыдущей группе)
-        dark = (np.array(c) < 192).mean() if c.width > 4 and c.height > 4 else 0
+        dark = cell_ink_fraction(c, ignore_rules=(x0 == vlines[3]))
         if dark < 0.004:
             return "", dark
         k = k or scale
@@ -495,6 +603,8 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
         lessons, time = (list(best[0]), best[1]) if best else ([], None)
         if best and not lessons_sure:
             review.append("OCR: чтения номеров уроков расходятся")
+        if best and len(lessons) == 1 and any(len(value[0]) > 1 for value in parsed):
+            review.append("OCR: одиночный урок расходится с чтением диапазона")
         subject = raw[2] if len(raw) > 2 else ""
         room = fix_digits(raw[3]) if len(raw) > 3 else ""
         room_alts = []
@@ -507,7 +617,7 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
             for r in room_reads:
                 r = r.replace(" ", "")
                 variants = {snap_room(fix_digits(r), rooms), snap_room(fix_digits(r.replace("]", "7")), rooms)}
-                votes.update(v for v in variants if v in rooms)
+                votes.update(v for v in variants if is_known_room(v, rooms))
             if votes:
                 room_alts = [v for i, (v, n) in enumerate(votes.most_common()) if i == 0 or n >= ROOM_ALT_MIN]
                 room = room_alts[0]  # прочтения расходятся — решит сверка (check_with_schedule)
@@ -517,10 +627,14 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
             if m:
                 subject = subject[:m.start()]
         room = snap_room(room, rooms)
+        if len(texts) > 3 and ((room and not is_known_room(room, rooms)) or (not room and texts[3][1] > 0.01)):
+            confirmed_room = _reread_room(im, (vlines[3], y0, vlines[4], y1), rooms, raw[3])
+            if confirmed_room:
+                room, room_alts = confirmed_room, [confirmed_room]
         subject = subject.strip(" |]")
         subject, s_ok = snap_subject(subject, vocab)
         if not s_ok:
-            confirmed = _reread_legacy_subject(im, (vlines[2], y0, vlines[3], y1), vocab)
+            confirmed = _reread_legacy_subject(im, (vlines[2], y0, vlines[3], y1), vocab, original=subject)
             if confirmed:
                 subject, s_ok = confirmed, True
         if not subject and texts[2][1] > 0.01:  # в ячейке что-то написано, а прочиталась пустота
@@ -533,6 +647,8 @@ def ocr_table(path, vocab=EXTRA_SUBJECTS, rooms=None, continued=False, alternate
             review.append("Проверка диапазона: границы не совпадают с учебными парами")
         if not room and len(texts) > 3 and texts[3][1] > 0.01:
             review.append("OCR: кабинет не прочитался в непустой ячейке")
+        elif room and not is_known_room(room, rooms):
+            review.append("OCR/справочник: кабинет или часть списка кабинетов не подтверждены")
         if not s_ok:
             review.append("OCR/справочник: название дисциплины не подтверждено")
         rows.append({"group": group, "lessons": lessons, "time": time, "subject": subject,

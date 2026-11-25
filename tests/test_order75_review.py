@@ -46,7 +46,7 @@ def test_order75_archived_photo_matches_all_verified_rows_without_publishing(tmp
     assert not list(tmp_path.iterdir())
 
 
-def test_order76_unconfirmed_language_pair_still_requires_review(tmp_path, monkeypatch):
+def test_order76_language_recovery_matches_all_source_rows(tmp_path, monkeypatch):
     exe = shutil.which("tesseract")
     if not exe or not {b"rus", b"eng"} <= set(subprocess.check_output([exe, "--list-langs"]).splitlines()):
         pytest.skip("Russian and English Tesseract data required")
@@ -54,11 +54,21 @@ def test_order76_unconfirmed_language_pair_still_requires_review(tmp_path, monke
     photo = next((data / "vk-review").glob("*/89_1.png"))
     monkeypatch.setattr(scraper, 'DATA', data)
     monkeypatch.setattr(vk_zamena, 'add_ai_suggestion', lambda *args: None)
+    readings = []
+    read_table = scraper.ocr_table
+    def capture(*args, **kwargs):
+        table = read_table(*args, **kwargs)
+        readings.append(table)
+        return table
+    monkeypatch.setattr(scraper, 'ocr_table', capture)
     result = vk_zamena.publish([photo], tmp_path, dt.date(2026, 11, 20), dry=True)
     assert result['date'] == '2026-11-19'
-    assert result['status'] == 'uncertain'
-    assert len(result['ocr_rows'][0]) == 17
-    assert '11-В' in result['reason'] and 'название дисциплины не подтверждено' in result['reason']
+    assert result['status'] == 'ok' and result['dry']
+    expected = json.loads((Path(__file__).parent / 'fixtures/order76-expected.json').read_text(encoding='utf-8'))
+    assert len(readings) == 2
+    for table in readings:
+        assert len(table['rows']) == 17
+        assert scraper.all_group_changes([table]) == expected
     assert not list(tmp_path.iterdir())
 
 
