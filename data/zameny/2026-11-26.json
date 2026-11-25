@@ -13,7 +13,7 @@
     ],
     "time": null,
     "subject": "Математика / Иностранный язык (немецкий)",
-    "room": "1-2$ /1-24",
+    "room": "1-28 / 1-24",
     "uncertain": false
    },
    {
@@ -57,7 +57,7 @@
     ],
     "time": null,
     "subject": "Информатика / Иностранный язык (немецкий)",
-    "room": "1-25/-24А",
+    "room": "1-25 / 1-24",
     "uncertain": false
    }
   ],
@@ -69,7 +69,7 @@
     ],
     "time": null,
     "subject": "Литература / Иностранный язык (немецкий)",
-    "room": "2-18/1-24А",
+    "room": "2-18 / 1-24",
     "uncertain": false
    }
   ],
@@ -93,7 +93,7 @@
     ],
     "time": null,
     "subject": "История / Иностранный язык (немецкий)",
-    "room": "2-10-24",
+    "room": "2-10 / 1-24",
     "uncertain": false
    }
   ],
@@ -136,7 +136,7 @@
      6
     ],
     "time": null,
-    "subject": "МДК.03.01 Технология рем.-регулирировочных работ устройств и приборов систем железнодорожной автоматики и телемеханики",
+    "subject": "МДК.01.01",
     "room": "1-32",
     "uncertain": false
    },
@@ -181,7 +181,7 @@
     ],
     "time": null,
     "subject": "Техническая эксплуатация железных дорог и безопасность движения",
-    "room": "1-9",
+    "room": "1-8",
     "uncertain": false
    },
    {
@@ -282,7 +282,7 @@
     "time": null,
     "subject": "Отменить",
     "room": "",
-    "uncertain": true
+    "uncertain": false
    },
    {
     "lessons": [
@@ -335,12 +335,346 @@
    ]
   }
  ],
- "title": "",
+ "title": "Четверг, 2-я неделя",
  "po_raspisaniyu": false,
- "ocr_ok": false,
+ "ocr_ok": true,
  "ocr_uncertain": false,
  "ocr_group_doubt": false,
  "week_doubt": false,
- "groups_in_order": [],
- "all_changes": {}
+ "groups_in_order": [
+  "11-П",
+  "11-Д",
+  "11-А",
+  "11-С",
+  "11-В",
+  "11-Л",
+  "21-А",
+  "21-С",
+  "21-Л",
+  "31-П",
+  "31-Д",
+  "31-А",
+  "31-С",
+  "41-Д",
+  "41-А",
+  "41-С"
+ ],
+ "all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Математика / Иностранный язык (немецкий)",
+    "room": "1-28 / 1-24",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Математика",
+    "room": "1-28",
+    "uncertain": false
+   }
+  ],
+  "11-Д": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Физика / Иностранный язык (немецкий)",
+    "room": "1-30 / 1-24",
+    "uncertain": false
+   }
+  ],
+  "11-А": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Информатика / Иностранный язык (немецкий)",
+    "room": "1-25 / 1-24",
+    "uncertain": false
+   }
+  ],
+  "11-С": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Литература / Иностранный язык (немецкий)",
+    "room": "2-18 / 1-24",
+    "uncertain": false
+   }
+  ],
+  "11-В": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "История / Иностранный язык (немецкий)",
+    "room": "2-10 / 1-24",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "История / Иностранный язык (немецкий)",
+    "room": "2-10 / 1-24",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технология рем.-регулирировочных работ устройств и приборов систем железнодорожной автоматики и телемеханики",
+    "room": "1-10",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Электрические измерения",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Экология на железнодорожном транспорте",
+    "room": "1-24",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "МДК.01.01",
+    "room": "1-32",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-Л": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Электротехника",
+    "room": "1-14",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "31-П": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Техническая эксплуатация железных дорог и безопасность движения",
+    "room": "1-8",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Безопасность жизнедеятельности",
+    "room": "1-3",
+    "uncertain": false
+   }
+  ],
+  "31-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.01.03 Автоматизированные системы управления на транспорте (по видам транспорта)",
+    "room": "1-15",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-25",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.02.01 Основы технического обслуживания устройств систем СЦБ и ЖАТ",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-29",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Физическая культура",
+    "room": "1-33",
+    "uncertain": false
+   }
+  ],
+  "41-Д": [
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6,
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.01.02 Теоретические основы построения и эксплуатации перегонных систем железнодорожной автоматики",
+    "room": "1-10",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технологии программирования, инсталляции и ввода в действие транспорт. радиоэлектрон. оборуд. (по видам тр.-та)",
+    "room": "1-30",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Планирование и организация работы структурного подразделения",
+    "room": "1-8",
+    "uncertain": false
+   }
+  ]
+ },
+ "checked_by_hand": "Сверено по всем 27 строкам распоряжения №82 и сообщению учебной части от 25.11: 21-С, 5–6, МДК.01.01, 1-32. Полное название МДК и фамилия преподавателя в уточнении не указаны.",
+ "verification_source": "2026-11-26-verified-order82.jpg"
 }
