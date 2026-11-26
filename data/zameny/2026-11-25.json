@@ -3,8 +3,349 @@
  "source": "https://utgt-pgups.ru/index.php?option=com_content&view=article&id=58",
  "fetched_at": "2026-11-24T15:57+03:00",
  "first_seen": "2026-11-24T15:57+03:00",
- "updated_at": null,
- "prev_all_changes": null,
+ "updated_at": "2026-11-26T10:44+03:00",
+ "prev_all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Математика",
+    "room": "1-28",
+    "uncertain": false
+   }
+  ],
+  "11-Д": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-А": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Литература",
+    "room": "2-18",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-С": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Математика",
+    "room": "2-5",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-В": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-Л": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-П": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Инженерная графика",
+    "room": "1-25",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Метрология, стандартизация и сертификация",
+    "room": "1-14",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Электротехника и электроника",
+    "room": "1-14",
+    "uncertain": false
+   }
+  ],
+  "21-А": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "История",
+    "room": "2-10",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Электротехническое черчение",
+    "room": "1-25",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Электронная техника",
+    "room": "1-30",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Теория электрических цепей",
+    "room": "1-32",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Электротехническое черчение",
+    "room": "1-25",
+    "uncertain": false
+   }
+  ],
+  "21-Л": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Электротехника",
+    "room": "1-14",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Прикладная математика",
+    "room": "2-5",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-25",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.02.01 Основы технического обслуживания устройств систем СЦБ и ЖАТ",
+    "room": "1-9",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-29",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Экономика, организация и планирование в путевом хозяйстве",
+    "room": "2-12",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     3,
+     4
+    ],
+    "time": null,
+    "subject": "Физическая культура",
+    "room": "1-33",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Экономика, организация и планирование в путевом хозяйстве",
+    "room": "2-12",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "41-А": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Физическая культура",
+    "room": "1-33",
+    "uncertain": false
+   }
+  ],
+  "41-С": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Физическая культура",
+    "room": "1-33",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.03.01 Технологии программирования, инсталляции и ввода в действие транспорт. радиоэлектрон. оборуд. (по видам тр.-та)",
+    "room": "1-30",
+    "uncertain": false
+   }
+  ]
+ },
  "images": [
   {
    "url": "https://utgt-pgups.ru/images/25-11-2026.png",
@@ -358,9 +699,7 @@
     "subject": "Физическая культура",
     "room": "1-33",
     "uncertain": false
-   }
-  ],
-  "41-С": [
+   },
    {
     "lessons": [
      5,
@@ -370,7 +709,9 @@
     "subject": "Физическая культура",
     "room": "1-33",
     "uncertain": false
-   },
+   }
+  ],
+  "41-С": [
    {
     "lessons": [
      7,
@@ -384,5 +725,6 @@
     "uncertain": false
    }
   ]
- }
+ },
+ "checked_by_hand": "Сверено с предоставленным оригиналом №81: физкультура 5–6 в 1-33 относится к 41-А, не 41-С. У 41-С остаются уроки 7–10 МДК.03.01."
 }
