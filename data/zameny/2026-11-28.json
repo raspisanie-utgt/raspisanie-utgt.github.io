@@ -1,0 +1,160 @@
+{
+ "date": "2026-11-28",
+ "source": "https://utgt-pgups.ru/index.php?option=com_content&view=article&id=58",
+ "fetched_at": "2026-11-27T15:23+03:00",
+ "first_seen": "2026-11-27T15:23+03:00",
+ "updated_at": null,
+ "prev_all_changes": null,
+ "images": [
+  {
+   "url": "https://utgt-pgups.ru/images/28-11-2026.png",
+   "file": "2026-11-28-1.png",
+   "sha1": "8677ff6a2be3a5fc102a51f63752f53e03724fe0",
+   "table": [
+    25,
+    223,
+    696,
+    519,
+    720,
+    533
+   ]
+  }
+ ],
+ "title": "Суббота. 2-я неделя",
+ "po_raspisaniyu": false,
+ "ocr_ok": true,
+ "ocr_uncertain": false,
+ "ocr_group_doubt": false,
+ "week_doubt": false,
+ "groups_in_order": [
+  "11-Д",
+  "11-П",
+  "21-П",
+  "21-С",
+  "31-А",
+  "31-С",
+  "41-П"
+ ],
+ "all_changes": {
+  "11-П": [
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "История",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "11-Д": [
+   {
+    "lessons": [
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "История",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-П": [
+   {
+    "lessons": [
+     1,
+     2
+    ],
+    "time": null,
+    "subject": "Геодезия",
+    "room": "2-2",
+    "uncertain": false
+   },
+   {
+    "lessons": [
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Отменить",
+    "room": "",
+    "uncertain": false
+   }
+  ],
+  "21-С": [
+   {
+    "lessons": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8
+    ],
+    "time": null,
+    "subject": "Математические методы решения прикладных профессиональных задач",
+    "room": "1-3",
+    "uncertain": false
+   }
+  ],
+  "31-А": [
+   {
+    "lessons": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-25",
+    "uncertain": false
+   }
+  ],
+  "31-С": [
+   {
+    "lessons": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "Учебная практика",
+    "room": "1-29",
+    "uncertain": false
+   }
+  ],
+  "41-П": [
+   {
+    "lessons": [
+     9,
+     10
+    ],
+    "time": null,
+    "subject": "МДК.04.01 Экономика, организация и планирование в путевом хозяйстве",
+    "room": "",
+    "uncertain": false
+   }
+  ]
+ }
+}
